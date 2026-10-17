@@ -1,3 +1,4 @@
+import socket
 import subprocess
 import re
 from datetime import datetime, UTC
@@ -59,6 +60,8 @@ def sync_local_asset():
         asset.asset_type = "server"  # l'asset local héberge toujours plusieurs services : toujours "server"
         asset.status = "up"
         asset.last_seen = datetime.now(UTC)
+        asset.hostname = socket.gethostname()
+        asset.name = socket.gethostname()
         db.commit()
 
         print(f"[CYBERMORPH][LocalPorts] {local_ip} mis à jour → {asset.asset_type} (ports: {unique_ports})")
