@@ -27,12 +27,19 @@ def list_simulations(db: Session = Depends(get_db)):
     return db.query(Simulation).order_by(Simulation.created_at.desc()).all()
 
 
+@router.get("/hypothesis-types")
+def list_hypothesis_types():
+    return HYPOTHESIS_TYPES
+
+
 @router.get("/{simulation_id}", response_model=SimulationOut)
 def get_simulation(simulation_id: int, db: Session = Depends(get_db)):
     sim = db.query(Simulation).filter(Simulation.id == simulation_id).first()
     if not sim:
         raise HTTPException(status_code=404, detail="Simulation introuvable")
     return sim
+
+
 @router.post("/{simulation_id}/hypothesis")
 def apply_simulation_hypothesis(simulation_id: int, hypothesis: dict, db: Session = Depends(get_db)):
     sim = db.query(Simulation).filter(Simulation.id == simulation_id).first()
@@ -44,6 +51,8 @@ def apply_simulation_hypothesis(simulation_id: int, hypothesis: dict, db: Sessio
 
     try:
         result = run_what_if(db, hypothesis)
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Champ manquant dans l'hypothèse : {e}")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -58,6 +67,7 @@ def apply_simulation_hypothesis(simulation_id: int, hypothesis: dict, db: Sessio
         "paths_before": result["paths_before_count"],
         "paths_after": result["paths_after_count"],
         "new_paths": result["new_paths_count"],
+        "escalated_paths": result.get("escalated_paths_count", 0),
     }}
 
 

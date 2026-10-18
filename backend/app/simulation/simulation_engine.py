@@ -1,7 +1,7 @@
 import copy
 import networkx as nx
 from sqlalchemy.orm import Session
-from app.attack_graph.graph_engine import build_graph, find_attack_paths, EVIDENCE_RANK, EVIDENCE_LABELS
+from app.attack_graph.graph_engine import build_graph, find_paths_on_graph
 
 # Types d'hypothèses supportées, volontairement limitées et explicites
 HYPOTHESIS_TYPES = {
@@ -45,6 +45,9 @@ def apply_hypothesis(graph: nx.DiGraph, hypothesis: dict) -> nx.DiGraph:
         if asset_id not in graph.nodes:
             raise ValueError(f"Asset #{asset_id} introuvable dans le graphe")
         graph.nodes[asset_id]["risk_score"] = min(graph.nodes[asset_id].get("risk_score", 0) + 20, 100)
+        # Un service supplémentaire exposé rend aussi l'asset plus facile à atteindre : renforce les arêtes entrantes
+        for _, _, data in graph.in_edges(asset_id, data=True):
+            data["weight"] = round(min(data["weight"] + 10, 100.0), 1)
 
     elif h_type == "connection_removed":
         source, target = hypothesis["source_asset_id"], hypothesis["destination_asset_id"]
@@ -61,17 +64,24 @@ def run_what_if(db: Session, hypothesis: dict) -> dict:
     AUCUNE écriture n'est faite sur les tables Asset/NetworkConnection/Alert.
     """
     original_graph = build_graph(db)
-    paths_before = find_attack_paths(db)  # utilise directement le graphe réel (lecture seule)
+    paths_before = find_paths_on_graph(original_graph)  # graphe réel, en lecture seule
 
     simulated_graph = clone_graph(original_graph)
     simulated_graph = apply_hypothesis(simulated_graph, hypothesis)
 
     # Recalcul des chemins sur le graphe SIMULÉ (pas sur la base réelle)
-    paths_after = _find_paths_on_graph(simulated_graph)
+    paths_after = find_paths_on_graph(simulated_graph)
 
     before_ids = {(p["source"], p["target"], tuple(p["nodes"])) for p in paths_before}
-    after_ids = {(p["source"], p["target"], tuple(p["nodes"])) for p in paths_after}
     new_paths = [p for p in paths_after if (p["source"], p["target"], tuple(p["nodes"])) not in before_ids]
+
+    # Chemins déjà existants dont le score augmente sous l'hypothèse (ex: asset compromis)
+    score_before = {(p["source"], p["target"], tuple(p["nodes"])): p["score"] for p in paths_before}
+    escalated_paths = [
+        {**p, "score_before": score_before[key]}
+        for p in paths_after
+        if (key := (p["source"], p["target"], tuple(p["nodes"]))) in score_before and p["score"] > score_before[key]
+    ]
 
     return {
         "hypothesis": hypothesis,
@@ -79,56 +89,9 @@ def run_what_if(db: Session, hypothesis: dict) -> dict:
         "paths_after_count": len(paths_after),
         "new_paths_count": len(new_paths),
         "new_paths": new_paths,
+        "escalated_paths_count": len(escalated_paths),
+        "escalated_paths": escalated_paths,
         "paths_before": paths_before,
         "paths_after": paths_after,
     }
 
-
-def _find_paths_on_graph(graph: nx.DiGraph) -> list[dict]:
-    """Version de find_attack_paths qui opère directement sur un graphe déjà construit (pour le graphe simulé)."""
-    results = []
-    high_value_targets = [
-        n for n, data in graph.nodes(data=True)
-        if data.get("risk_score", 0) >= 50 or data.get("asset_type") in ("server", "router")
-    ]
-
-    for source in graph.nodes:
-        for target in high_value_targets:
-            if source == target:
-                continue
-            try:
-                paths = list(nx.all_simple_paths(graph, source, target, cutoff=4))
-            except nx.NetworkXNoPath:
-                continue
-
-            for path in paths:
-                if len(path) < 2:
-                    continue
-                edges_data = [graph.edges[path[i], path[i + 1]] for i in range(len(path) - 1)]
-                edge_weights = [e["weight"] for e in edges_data]
-                length_penalty = 0.85 ** (len(path) - 2)
-                path_score = round((sum(edge_weights) / len(edge_weights)) * length_penalty, 1)
-
-                if path_score >= 75:
-                    risk_label = "critical"
-                elif path_score >= 50:
-                    risk_label = "high"
-                elif path_score >= 25:
-                    risk_label = "moderate"
-                else:
-                    risk_label = "low"
-
-                connection_types = []
-                for e in edges_data:
-                    connection_types.extend(e["connection_types"])
-                weakest_rank = min(EVIDENCE_RANK.get(ct, 1) for ct in connection_types)
-                evidence_level = EVIDENCE_LABELS[weakest_rank]
-
-                results.append({
-                    "source": source, "target": target, "nodes": path,
-                    "score": path_score, "risk": risk_label, "hops": len(path) - 1,
-                    "evidence_level": evidence_level, "connection_types": connection_types,
-                })
-
-    results.sort(key=lambda r: r["score"], reverse=True)
-    return results

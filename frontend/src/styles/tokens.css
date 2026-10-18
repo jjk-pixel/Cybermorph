@@ -1,0 +1,51 @@
+/*
+ * Jetons CYBERMORPH.
+ * La couleur porte un statut épistémique, partout (interface et scène 3D) :
+ *   cyan    = observé (trafic, actifs sains)
+ *   bleu    = structure, sélection, voisinage
+ *   violet  = prédit ou simulé (chemins d'attaque, hypothèses)
+ *   ambre → orange → rouge = sévérité croissante, rouge = hostile confirmé
+ */
+:root {
+  color-scheme: dark;
+
+  --bg: #02060d;
+  --surface: rgba(5, 13, 24, 0.84);
+  --surface-solid: #050d18;
+  --surface-raised: #0a1626;
+  --line: rgba(47, 107, 255, 0.2);
+  --line-strong: rgba(47, 107, 255, 0.48);
+
+  --ink: #e6f4ff;
+  --ink-2: #a3b9cf;
+  --ink-3: #7189a3;
+
+  --cyan: #22e4ff;
+  --blue: #2f6bff;
+  --violet: #9b5cff;
+  --amber: #ffc857;
+  --orange: #ff8a3d;
+  --red: #ff3b5c;
+  --muted: #3a4658;
+
+  --font-ui: "Chakra Petch", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Échelle typographique (rapport ≈ 1,2) */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.875rem;
+  --fs-lg: 1rem;
+  --fs-xl: 1.25rem;
+  --fs-2xl: 1.75rem;
+  --fs-3xl: 2.5rem;
+
+  --radius-panel: 12px;
+  --radius-control: 6px;
+  --radius-tag: 3px;
+
+  --gap: 12px;
+  --rail-width: 84px;
+  --statusbar-height: 64px;
+  --inspector-width: 360px;
+}

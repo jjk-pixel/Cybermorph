@@ -1,8 +1,10 @@
+from itertools import islice
 import networkx as nx
 from sqlalchemy.orm import Session
 from app.models.asset import Asset
+from app.models.alert import Alert
 from app.models.network_connection import NetworkConnection
-from app.correlation.alert_correlation import get_alerts_for_pair, compute_alert_score
+from app.correlation.alert_correlation import compute_alert_score
 
 # Poids de transition, par type de service exposé sur la connexion cible
 SERVICE_EXPOSURE_WEIGHTS = {
@@ -40,12 +42,17 @@ EVIDENCE_LABELS = {
     4: "alerte_ids",
 }
 
+# Garde-fous contre l'explosion combinatoire de all_simple_paths sur un graphe dense
+MAX_PATHS_PER_PAIR = 25
+MAX_TOTAL_PATHS = 500
+
+
 def build_graph(db: Session) -> nx.DiGraph:
     """Construit le graphe orienté Asset -> Asset, en corroborant chaque relation avec les alertes IDS disponibles."""
     graph = nx.DiGraph()
 
     assets = db.query(Asset).all()
-    ip_by_id = {a.id: a.ip_address for a in assets}
+    assets_by_id = {a.id: a for a in assets}
 
     for asset in assets:
         graph.add_node(
@@ -64,16 +71,22 @@ def build_graph(db: Session) -> nx.DiGraph:
         key = (conn.source_asset_id, conn.destination_asset_id)
         pair_data.setdefault(key, []).append(conn)
 
+    # Chargement unique des alertes, regroupées par paire (source_ip, destination_ip)
+    alerts_by_pair: dict[tuple[str, str], list[Alert]] = {}
+    for alert in db.query(Alert).all():
+        alerts_by_pair.setdefault((alert.source_ip, alert.destination_ip), []).append(alert)
+
     for (src, dst), conns in pair_data.items():
-        weights = [compute_transition_weight(db, c) for c in conns]
+        dest = assets_by_id.get(dst)
+        weights = [_transition_weight(dest, c) for c in conns]
         base_weight = max(weights)
         connection_types = [c.connection_type for c in conns]
 
         # Corrélation : cette relation est-elle corroborée par une alerte IDS réelle ?
-        src_ip, dst_ip = ip_by_id.get(src), ip_by_id.get(dst)
+        src_asset = assets_by_id.get(src)
         alert_score, alert_summary = 0.0, None
-        if src_ip and dst_ip:
-            alerts = get_alerts_for_pair(db, src_ip, dst_ip)
+        if src_asset and dest:
+            alerts = alerts_by_pair.get((src_asset.ip_address, dest.ip_address), [])
             alert_score, alert_summary = compute_alert_score(alerts)
 
         if alert_score > 0:
@@ -96,7 +109,14 @@ def build_graph(db: Session) -> nx.DiGraph:
 
     return graph
 
+
 def compute_transition_weight(db: Session, conn: NetworkConnection) -> float:
+    """Variante historique : charge l'asset cible puis délègue au calcul pur."""
+    dest = db.query(Asset).filter(Asset.id == conn.destination_asset_id).first()
+    return _transition_weight(dest, conn)
+
+
+def _transition_weight(dest: Asset | None, conn: NetworkConnection) -> float:
     """
     Calcule un score de transition (0-100) représentant la facilité/plausibilité
     de progression d'un attaquant de source_asset vers destination_asset.
@@ -108,7 +128,6 @@ def compute_transition_weight(db: Session, conn: NetworkConnection) -> float:
     - privilege         (20) : type d'asset cible (server/router = plus intéressant)
     - evidence          (15) : fiabilité de la preuve de connexion
     """
-    dest = db.query(Asset).filter(Asset.id == conn.destination_asset_id).first()
     if not dest:
         return 0.0
 
@@ -131,12 +150,21 @@ def compute_transition_weight(db: Session, conn: NetworkConnection) -> float:
     return round(min(total, 100.0), 1)
 
 
-def find_attack_paths(db: Session, min_score: float = 0.0, max_length: int = 4) -> list[dict]:
+def risk_label_for(score: float) -> str:
+    if score >= 75:
+        return "critical"
+    if score >= 50:
+        return "high"
+    if score >= 25:
+        return "moderate"
+    return "low"
+
+
+def find_paths_on_graph(graph: nx.DiGraph, min_score: float = 0.0, max_length: int = 4) -> list[dict]:
     """
-    Trouve tous les chemins simples entre assets, évalue leur score cumulé,
-    et retourne ceux vers des cibles à risque (score cible élevé).
+    Trouve les chemins simples vers les cibles à forte valeur d'un graphe déjà construit
+    (graphe réel ou graphe simulé), évalue leur score cumulé et leur niveau de preuve.
     """
-    graph = build_graph(db)
     results = []
 
     high_value_targets = [
@@ -146,12 +174,10 @@ def find_attack_paths(db: Session, min_score: float = 0.0, max_length: int = 4) 
 
     for source in graph.nodes:
         for target in high_value_targets:
-            if source == target:
+            if source == target or len(results) >= MAX_TOTAL_PATHS:
                 continue
-            try:
-                paths = list(nx.all_simple_paths(graph, source, target, cutoff=max_length))
-            except nx.NetworkXNoPath:
-                continue
+
+            paths = islice(nx.all_simple_paths(graph, source, target, cutoff=max_length), MAX_PATHS_PER_PAIR)
 
             for path in paths:
                 if len(path) < 2:
@@ -169,16 +195,8 @@ def find_attack_paths(db: Session, min_score: float = 0.0, max_length: int = 4) 
                 if path_score < min_score:
                     continue
 
-                if path_score >= 75:
-                    risk_label = "critical"
-                elif path_score >= 50:
-                    risk_label = "high"
-                elif path_score >= 25:
-                    risk_label = "moderate"
-                else:
-                    risk_label = "low"
-
-                # Niveau de preuve du chemin = maillon le plus faible sur tout le trajet
+                # Niveau de preuve du chemin = maillon le plus faible sur le trajet,
+                # chaque maillon valant sa preuve la plus forte (ARP + alerte IDS sur la même paire = alerte IDS)
                 connection_types = []
                 alert_summaries = []
                 for e in edges_data:
@@ -186,7 +204,10 @@ def find_attack_paths(db: Session, min_score: float = 0.0, max_length: int = 4) 
                     if e.get("alert_summary"):
                         alert_summaries.append(e["alert_summary"])
 
-                weakest_rank = min(EVIDENCE_RANK.get(ct, 1) for ct in connection_types)
+                weakest_rank = min(
+                    max(EVIDENCE_RANK.get(ct, 1) for ct in e["connection_types"])
+                    for e in edges_data
+                )
                 evidence_level = EVIDENCE_LABELS[weakest_rank]
 
                 results.append({
@@ -194,7 +215,7 @@ def find_attack_paths(db: Session, min_score: float = 0.0, max_length: int = 4) 
                     "target": target,
                     "nodes": path,
                     "score": path_score,
-                    "risk": risk_label,
+                    "risk": risk_label_for(path_score),
                     "hops": len(path) - 1,
                     "evidence_level": evidence_level,
                     "connection_types": connection_types,
@@ -203,3 +224,11 @@ def find_attack_paths(db: Session, min_score: float = 0.0, max_length: int = 4) 
 
     results.sort(key=lambda r: r["score"], reverse=True)
     return results
+
+
+def find_attack_paths(db: Session, min_score: float = 0.0, max_length: int = 4) -> list[dict]:
+    """
+    Trouve tous les chemins simples entre assets, évalue leur score cumulé,
+    et retourne ceux vers des cibles à risque (score cible élevé).
+    """
+    return find_paths_on_graph(build_graph(db), min_score=min_score, max_length=max_length)

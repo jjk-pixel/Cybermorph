@@ -8,3 +8,6 @@ backend/.env
 *.log
 cybermorph.log
 .DS_Store
+
+# État de lecture incrémentale de fast.log (collecteur Suricata)
+backend/suricata_fast.offset

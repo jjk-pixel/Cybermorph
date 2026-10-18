@@ -3,17 +3,19 @@ from app.database import Base, engine
 from app.models import asset, network_connection, alert, attack_technique, simulation, snapshot, incident, attack_path_step  # noqa: F401
 from app.api import assets, network_connections, attack_paths, alerts, attack_techniques, simulations, timeline, live, incidents
 from fastapi.middleware.cors import CORSMiddleware
+from app.security import TokenAuthMiddleware, CORS_ORIGINS
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="CYBERMORPH",
     description="Cybersecurity Network Digital Twin",
-    version="0.1.0"
+    version="0.3.0"
 )
+app.add_middleware(TokenAuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # à restreindre en prod, ok pour ton lab
+    allow_origins=CORS_ORIGINS,  # origines du frontend (CYBERMORPH_CORS_ORIGINS), jamais "*"
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -33,7 +35,7 @@ def root():
     return {
         "project": "CYBERMORPH",
         "status": "online",
-        "version": "0.1.0"
+        "version": "0.3.0"
     }
 
 @app.get("/api/health")

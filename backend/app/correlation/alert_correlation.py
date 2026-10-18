@@ -32,8 +32,9 @@ def compute_alert_score(alerts: list[Alert]) -> tuple[float, dict | None]:
     if not alerts:
         return 0.0, None
 
-    highest_priority = min(a.priority for a in alerts if a.priority is not None)
-    total_occurrences = sum(a.occurrence_count for a in alerts)
+    # Une alerte sans priorité est traitée comme la moins sévère, plutôt que de faire échouer le calcul
+    highest_priority = min((a.priority for a in alerts if a.priority is not None), default=4)
+    total_occurrences = sum(a.occurrence_count or 0 for a in alerts)
 
     severity_weight = SEVERITY_WEIGHTS.get(highest_priority, 5)
     frequency_weight = min(math.log10(total_occurrences + 1) * 10, 30)

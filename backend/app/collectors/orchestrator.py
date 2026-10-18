@@ -1,7 +1,7 @@
 import logging
 from app.models.alert import Alert
-from app.incidents.incident_engine import create_incident_from_alert
-from app.incidents.attack_progression import create_potential_steps
+from app.incidents.incident_engine import create_incident_from_alert, mark_dormant_incidents, CORRELATION_WINDOW
+from app.incidents.attack_progression import create_potential_steps, advance_incident
 from app.risk.apply_risk import apply_risk_scoring
 from datetime import datetime, UTC
 from app.collectors.nmap_collector import scan_network
@@ -57,8 +57,10 @@ def run_full_scan():
         print(f"[CYBERMORPH][Orchestrateur] Erreur Suricata : {e}")
     try:
         db = SessionLocal()
-        apply_mitre_mapping(db)
-        db.close()
+        try:
+            apply_mitre_mapping(db)
+        finally:
+            db.close()
         logging.info("Mapping MITRE ATT&CK terminé avec succès.")
     except Exception as e:
         logging.error(f"Erreur pendant le mapping MITRE : {e}")
@@ -71,16 +73,33 @@ def run_full_scan():
         print(f"[CYBERMORPH][Orchestrateur] Erreur Snapshot : {e}")
     try:
         db = SessionLocal()
-        recent_alerts = db.query(Alert).filter(Alert.priority <= 2).all()
-        incidents_updated = 0
-        for a in recent_alerts:
-            incident = create_incident_from_alert(db, a)
-            if incident:
-                create_potential_steps(db, incident)
-                incidents_updated += 1
-        db.close()
-        logging.info(f"Incident Engine : {incidents_updated} incident(s) traité(s).")
-        print(f"[CYBERMORPH][Incidents] {incidents_updated} incident(s) traité(s).")
+        try:
+            # Seules les alertes réellement récentes alimentent les incidents : une alerte ancienne
+            # ne doit pas maintenir artificiellement un incident actif indéfiniment.
+            window_start = datetime.now(UTC) - CORRELATION_WINDOW
+            recent_alerts = (
+                db.query(Alert)
+                .filter(Alert.priority <= 2, Alert.last_seen >= window_start)
+                .all()
+            )
+            incidents_updated = 0
+            steps_confirmed = 0
+            for a in recent_alerts:
+                incident = create_incident_from_alert(db, a)
+                if incident:
+                    create_potential_steps(db, incident)
+                    if advance_incident(db, incident):
+                        steps_confirmed += 1
+                        create_potential_steps(db, incident)
+                    incidents_updated += 1
+            dormant = mark_dormant_incidents(db)
+        finally:
+            db.close()
+        logging.info(
+            f"Incident Engine : {incidents_updated} incident(s) traité(s), "
+            f"{steps_confirmed} étape(s) confirmée(s), {dormant} passé(s) en dormant."
+        )
+        print(f"[CYBERMORPH][Incidents] {incidents_updated} traité(s), {steps_confirmed} étape(s) confirmée(s), {dormant} dormant(s).")
     except Exception as e:
         logging.error(f"Erreur pendant l'Incident Engine : {e}")
         print(f"[CYBERMORPH][Orchestrateur] Erreur Incidents : {e}")

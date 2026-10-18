@@ -21,6 +21,7 @@ class AssetCreate(AssetBase):
 
 class AssetOut(AssetBase):
     id: int
+    risk_factors: Optional[str] = None  # JSON stringifié produit par le moteur de risque
     last_seen: datetime
     created_at: datetime
     updated_at: Optional[datetime] = None
