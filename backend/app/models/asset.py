@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, JSON
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float, JSON
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -27,6 +27,12 @@ class Asset(Base):
     criticality = Column(String, nullable=True)
     criticality_reason = Column(String, nullable=True)
     criticality_updated_at = Column(DateTime(timezone=True), nullable=True)
+    # Lot 2 — inventaire : autorisation (authorized / unauthorized, NULL = non statué) et provenance de ce statut
+    authorization = Column(String, nullable=True)
+    authorization_source = Column(String, nullable=True)   # learning, declared
+    # Actif qui sonde le réseau (le capteur CYBERMORPH lui-même) : ses sondes ne sont pas du comportement normal
+    is_scanner = Column(Boolean, nullable=True)
+    scanner_reason = Column(String, nullable=True)
     last_seen = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

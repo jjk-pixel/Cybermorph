@@ -6,6 +6,7 @@ from app.models.asset import Asset
 from app.collectors.network_utils import get_local_subnet
 import subprocess
 from app.inventory.classification import classify_asset
+from app.inventory.observations import record_observation
 
 def resolve_hostname_mdns(ip: str) -> str:
     """Tente de résoudre le hostname via mDNS (avahi), indépendamment de Nmap."""
@@ -75,15 +76,19 @@ def scan_network(subnet: str = None):
             classification = classify_asset(open_ports, services, vendor, os_detected)
             asset_type = classification["type"]
 
-            # Résolution hostname : mDNS d'abord, puis fallback VMware
+            # Résolution hostname : mDNS d'abord, puis fallback VMware. La source est mémorisée :
+            # un nom annoncé (mDNS) ou résolu (DNS) n'a pas la même valeur qu'un nom déduit.
             resolved_hostname = resolve_hostname_mdns(ip)
+            hostname_source = "mdns" if resolved_hostname else None
 
             if not resolved_hostname:
                 nmap_hostname = host_data.get("hostnames", [{}])[0].get("name") or ""
                 if nmap_hostname and nmap_hostname != ip:
                     resolved_hostname = nmap_hostname
+                    hostname_source = "dns"
 
             if not resolved_hostname:
+                hostname_source = "heuristic"
                 if vendor and "vmware" in vendor.lower():
                     if 53 in open_ports:
                         resolved_hostname = "vmware-nat"
@@ -125,6 +130,19 @@ def scan_network(subnet: str = None):
                     status="up",
                 )
                 db.add(new_asset)
+                db.flush()
+                existing = new_asset
+
+            # Journal d'observations : chaque fait vu par Nmap, attribut par attribut
+            record_observation(db, ip, "nmap", "mac", mac, existing.id)
+            record_observation(db, ip, "nmap", "vendor", vendor, existing.id)
+            record_observation(db, ip, "nmap", "os", os_detected, existing.id)
+            if resolved_hostname != ip:
+                record_observation(db, ip, hostname_source, "hostname", resolved_hostname, existing.id)
+            for port in open_ports:
+                record_observation(db, ip, "nmap", "open_port", port, existing.id)
+            for service in services:
+                record_observation(db, ip, "nmap", "service", service, existing.id)
 
             db.commit()
             print(f"[CYBERMORPH][Nmap] {ip} → {asset_type} ({vendor or 'vendor inconnu'})")

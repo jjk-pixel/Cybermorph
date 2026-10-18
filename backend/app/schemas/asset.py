@@ -29,6 +29,10 @@ class AssetOut(AssetBase):
     classification: Optional[dict] = None
     criticality: Optional[str] = None
     criticality_reason: Optional[str] = None
+    authorization: Optional[str] = None
+    authorization_source: Optional[str] = None
+    is_scanner: Optional[bool] = None
+    scanner_reason: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -46,3 +50,6 @@ class AssetDeclaration(BaseModel):
     criticality: Optional[CriticalityLevel] = None
     criticality_reason: Optional[str] = None
     asset_type: Optional[AssetTypeValue] = None
+    authorization: Optional[Literal["authorized", "unauthorized"]] = None
+    is_scanner: Optional[bool] = None
+    scanner_reason: Optional[str] = None

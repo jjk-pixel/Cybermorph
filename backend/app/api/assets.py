@@ -59,6 +59,14 @@ def declare_asset_attributes(asset_id: int, declaration: AssetDeclaration, db: S
             if inferred:
                 asset.asset_type = inferred
 
+    if "authorization" in provided:
+        asset.authorization = declaration.authorization
+        asset.authorization_source = "declared" if declaration.authorization else None
+
+    if "is_scanner" in provided:
+        asset.is_scanner = declaration.is_scanner
+        asset.scanner_reason = (declaration.scanner_reason or "Déclaré par l'opérateur") if declaration.is_scanner else None
+
     # Le score de risque dépend de la criticité : recalcul immédiat plutôt qu'au prochain cycle
     result = calculate_risk(asset)
     asset.risk_score = result["risk_score"]

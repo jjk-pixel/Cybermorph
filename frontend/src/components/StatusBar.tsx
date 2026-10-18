@@ -14,6 +14,7 @@ const LINK_TEXT: Record<LinkStatus, string> = {
 const VIEW_TITLE = {
   overview: "Jumeau numérique",
   exposure: "Exposition des actifs critiques",
+  inventory: "Inventaire et identités",
   alerts: "Alertes IDS",
   incidents: "Incidents",
   paths: "Chemins d'attaque",

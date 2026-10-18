@@ -15,6 +15,7 @@ from app.models.attack_technique import AttackTechnique, AlertTechniqueMapping
 from app.models.incident import Incident
 from app.models.network_connection import NetworkConnection
 from app.models.snapshot import Snapshot
+from app.models.observation import AssetChange
 from app.attack_graph.graph_engine import build_graph, find_paths_on_graph, EVIDENCE_RANK, EVIDENCE_LABELS
 from app.incidents.incident_engine import ACTIVE_STATUSES
 from app.exposure.criticality import effective_criticality
@@ -27,6 +28,7 @@ logger = logging.getLogger("cybermorph.live")
 # Intervalle de diffusion (indépendant du cycle de 5 min de l'orchestrateur)
 LIVE_INTERVAL_SECONDS = 5
 RECENT_ALERTS_LIMIT = 25
+RECENT_CHANGES_LIMIT = 10
 LIVE_PATH_MIN_SCORE = 25.0
 
 
@@ -127,6 +129,22 @@ def _recent_alerts(db: Session) -> list[dict]:
     ]
 
 
+def _recent_changes(db: Session) -> list[dict]:
+    """Derniers changements d'inventaire significatifs (hors simple information)."""
+    rows = (
+        db.query(AssetChange)
+        .filter(AssetChange.severity.in_(("notice", "warning")))
+        .order_by(AssetChange.detected_at.desc(), AssetChange.id.desc())
+        .limit(RECENT_CHANGES_LIMIT)
+        .all()
+    )
+    return [
+        {"id": c.id, "asset_id": c.asset_id, "ip": c.ip, "change_type": c.change_type, "severity": c.severity,
+         "explanation": c.explanation, "detected_at": _iso(c.detected_at), "acknowledged": c.acknowledged_at is not None}
+        for c in rows
+    ]
+
+
 def get_live_state(db: Session) -> dict:
     """Snapshot de l'état courant, calculé une fois par tick et diffusé à tous les clients."""
     assets = db.query(Asset).all()
@@ -158,6 +176,8 @@ def get_live_state(db: Session) -> dict:
                 "asset_type_source": a.asset_type_source or "inferred",
                 "classification": a.classification,
                 "criticality": effective_criticality(a),
+                "authorization": a.authorization,
+                "is_scanner": bool(a.is_scanner),
             }
             for a in assets
         ],
@@ -189,6 +209,7 @@ def get_live_state(db: Session) -> dict:
         "choke_points": compute_choke_points(paths),
         "active_incidents": active_incidents,
         "recent_alerts": _recent_alerts(db),
+        "recent_changes": _recent_changes(db),
         "stats": {
             "assets": len(assets),
             "assets_up": sum(1 for a in assets if a.status == "up"),
@@ -199,6 +220,8 @@ def get_live_state(db: Session) -> dict:
             "active_incidents": len(active_incidents),
             "attack_paths": len(paths),
             "max_path_score": max((p["score"] for p in paths), default=0.0),
+            "unauthorized_assets": sum(1 for a in assets if a.authorization == "unauthorized"),
+            "changes_24h": db.query(AssetChange).filter(AssetChange.detected_at >= day_ago).count(),
             "avg_risk": round(sum(risk_scores) / len(risk_scores), 1) if risk_scores else 0.0,
             "max_risk": max(risk_scores, default=0.0),
         },

@@ -5,6 +5,7 @@ import {
 import { useAssetIndex } from "../lib/useAssets";
 import { useLive } from "../state/live";
 import { ui, useUi } from "../state/ui";
+import { AssetIdentity } from "./AssetIdentity";
 import { AssetProfile } from "./AssetProfile";
 import { Meter, Panel, PriorityTag, RiskTag, Score } from "./ui";
 
@@ -55,6 +56,7 @@ export function AssetInspector() {
       </div>
 
       <AssetProfile asset={asset} label={label} />
+      <AssetIdentity asset={asset} />
 
       <h3 className="section-title">Pourquoi ce score</h3>
       <ul className="breakdown">

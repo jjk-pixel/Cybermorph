@@ -48,6 +48,8 @@ export type LiveAsset = {
   asset_type_source: "declared" | "inferred";
   classification: Classification | null;
   criticality: Criticality;
+  authorization: "authorized" | "unauthorized" | null;
+  is_scanner: boolean;
 };
 
 export type EvidenceLevel = "voisinage_detecte" | "inferee" | "observee" | "alerte_ids";
@@ -144,6 +146,8 @@ export type LiveStats = {
   max_path_score: number;
   avg_risk: number;
   max_risk: number;
+  unauthorized_assets: number;
+  changes_24h: number;
 };
 
 export type LiveState = {
@@ -157,7 +161,19 @@ export type LiveState = {
   choke_points: ChokePoint[];
   active_incidents: LiveIncident[];
   recent_alerts: Alert[];
+  recent_changes: LiveChange[];
   stats: LiveStats;
+};
+
+export type LiveChange = {
+  id: number;
+  asset_id: number | null;
+  ip: string | null;
+  change_type: string;
+  severity: ChangeSeverity;
+  explanation: string;
+  detected_at: string;
+  acknowledged: boolean;
 };
 
 /* ---- Exposition (lot 1) ---- */
@@ -240,6 +256,9 @@ export type AssetDeclaration = {
   criticality?: CriticalityLevel | null;
   criticality_reason?: string | null;
   asset_type?: string | null;
+  authorization?: "authorized" | "unauthorized" | null;
+  is_scanner?: boolean | null;
+  scanner_reason?: string | null;
 };
 
 export type IncidentSummary = {
@@ -320,5 +339,88 @@ export type Simulation = {
   result: SimulationResult | null;
   created_at: string;
   completed_at: string | null;
+};
+
+/* ---- Inventaire et identités (lot 2) ---- */
+
+export type ChangeSeverity = "info" | "notice" | "warning";
+
+export type Identifier = {
+  attribute: "mac" | "vendor" | "os" | "hostname";
+  value: string;
+  sources: string[];
+  first_seen: string;
+  last_seen: string;
+  current: boolean;
+};
+
+export type Identity = {
+  confidence: number;
+  reasons: string[];
+  name: { value: string; sources: string[]; observed: boolean } | null;
+  identifiers: Identifier[];
+  open_conflicts: number;
+};
+
+export type InventoryEntry = {
+  id: number;
+  ip: string;
+  name: string;
+  asset_type: string;
+  status: string;
+  authorization: "authorized" | "unauthorized" | null;
+  authorization_source: "learning" | "declared" | null;
+  is_scanner: boolean;
+  scanner_reason: string | null;
+  first_seen: string | null;
+  last_seen: string | null;
+  identity: Identity;
+  observation_count: number;
+  changes_24h: number;
+};
+
+export type LearningWindow = { started_at: string; ends_at: string; hours: number; in_learning: boolean };
+
+export type Inventory = {
+  learning: LearningWindow;
+  assets: InventoryEntry[];
+  stats: { assets: number; unauthorized: number; pending: number; scanners: number; conflicts: number; new_24h: number; changes_24h: number };
+};
+
+export type AssetChange = {
+  id: number;
+  asset_id: number | null;
+  ip: string | null;
+  change_type: string;
+  attribute: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  source: string | null;
+  source_label: string | null;
+  severity: ChangeSeverity;
+  explanation: string;
+  evidence: Record<string, unknown> | null;
+  detected_at: string;
+  acknowledged_at: string | null;
+};
+
+export type Observation = {
+  id: number;
+  source: string;
+  source_label: string;
+  attribute: string;
+  value: string;
+  first_seen: string;
+  last_seen: string;
+  seen_count: number;
+  retired_at: string | null;
+};
+
+export type InventoryDetail = {
+  asset_id: number;
+  ip: string;
+  identity: Identity;
+  observations: Observation[];
+  changes: AssetChange[];
 };
 

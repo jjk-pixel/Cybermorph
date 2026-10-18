@@ -32,6 +32,16 @@ export const IconExposure = (p: IconProps) => (
   </svg>
 );
 
+/* Inventaire : fiches empilées, la première annotée */
+export const IconInventory = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="3" width="14" height="4" rx="1" />
+    <rect x="3" y="8.5" width="14" height="4" rx="1" />
+    <rect x="3" y="14" width="14" height="3" rx="1" />
+    <path d="M6 5h2M6 10.5h2" />
+  </svg>
+);
+
 export const IconAlert = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M10 2.5 18 17H2z" />

@@ -4,6 +4,7 @@
  */
 import type {
   Alert,
+  AssetChange,
   AssetDeclaration,
   AttackPath,
   BlastRadius,
@@ -11,6 +12,8 @@ import type {
   Hypothesis,
   IncidentDetail,
   IncidentSummary,
+  Inventory,
+  InventoryDetail,
   LiveState,
   ObservedTechnique,
   Simulation,
@@ -64,6 +67,11 @@ export const api = {
   exposure: (minScore = 25, maxLength = 4) =>
     request<Exposure>(`/api/exposure/${query({ min_score: minScore, max_length: maxLength })}`),
   blastRadius: (assetId: number) => request<BlastRadius>(`/api/exposure/blast-radius/${assetId}`),
+  inventory: () => request<Inventory>("/api/inventory/"),
+  inventoryAsset: (assetId: number) => request<InventoryDetail>(`/api/inventory/${assetId}`),
+  changes: (params: { limit?: number; asset_id?: number; min_severity?: string; include_acknowledged?: boolean } = {}) =>
+    request<AssetChange[]>(`/api/changes/${query({ ...params, include_acknowledged: params.include_acknowledged === false ? "false" : undefined })}`),
+  acknowledgeChange: (id: number) => request<AssetChange>(`/api/changes/${id}/acknowledge`, { method: "POST" }),
   declareAsset: (assetId: number, declaration: AssetDeclaration) =>
     request<unknown>(`/api/assets/${assetId}`, { method: "PATCH", body: JSON.stringify(declaration) }),
   alerts: (limit = 200) => request<Alert[]>(`/api/alerts/${query({ limit })}`),

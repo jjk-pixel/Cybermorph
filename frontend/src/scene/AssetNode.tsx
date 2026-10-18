@@ -19,6 +19,8 @@ type Props = {
   critical: "declared" | "inferred" | null;
   /* point de blocage des chemins d'attaque */
   choke: boolean;
+  /* actif non autorisé (apparu après l'apprentissage ou déclaré comme tel) */
+  unauthorized: boolean;
   animate: boolean;
   onSelect: (id: number) => void;
   onHover: (id: number | null) => void;
@@ -39,7 +41,7 @@ function Shape({ type }: { type: string }) {
 }
 
 export function AssetNode({
-  asset, position, selected, hovered, dimmed, underAttack, compromised, exposed, critical, choke, animate, onSelect, onHover,
+  asset, position, selected, hovered, dimmed, underAttack, compromised, exposed, critical, choke, unauthorized, animate, onSelect, onHover,
 }: Props) {
   const body = useRef<Mesh>(null);
   const shell = useRef<Mesh>(null);
@@ -138,6 +140,18 @@ export function AssetNode({
         </mesh>
       )}
 
+      {/* Non autorisé : anneau ambre discontinu autour du nœud */}
+      {unauthorized && (
+        <group rotation={[-Math.PI / 2, 0, 0]}>
+          {Array.from({ length: 6 }, (_, i) => (
+            <mesh key={i}>
+              <ringGeometry args={[0.66, 0.71, 12, 1, (i * Math.PI) / 3, Math.PI / 5]} />
+              <meshBasicMaterial color={COLORS.amber} transparent opacity={0.9 * opacity} toneMapped={false} side={2} />
+            </mesh>
+          ))}
+        </group>
+      )}
+
       {exposed && (
         <mesh position={[0, 0.62, 0]} rotation={[Math.PI, 0, 0]}>
           <coneGeometry args={[0.1, 0.2, 4]} />
@@ -152,6 +166,8 @@ export function AssetNode({
             <span className="node-label-meta">
               {asset.hostname && asset.hostname !== asset.ip ? asset.hostname : ASSET_TYPE_LABEL[asset.asset_type] ?? asset.asset_type}
               {down ? " · hors ligne" : ""}
+              {unauthorized ? " · non autorisé" : ""}
+              {asset.is_scanner ? " · scanner" : ""}
             </span>
           )}
         </div>

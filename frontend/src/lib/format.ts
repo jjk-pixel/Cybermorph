@@ -151,3 +151,28 @@ export function formatConfidence(value: number | null | undefined): string {
   return value == null ? "—" : `${Math.round(value * 100)} %`;
 }
 
+export const CHANGE_TYPE_LABEL: Record<string, string> = {
+  new_asset: "Nouvel actif",
+  port_opened: "Port ouvert",
+  port_closed: "Port fermé",
+  identity_conflict: "Conflit d'identité",
+  mac_shared: "MAC partagée",
+  os_changed: "OS estimé modifié",
+  vendor_changed: "Constructeur modifié",
+  hostname_changed: "Nom modifié",
+  went_offline: "Hors ligne",
+  back_online: "De retour",
+};
+
+export const SEVERITY_LABEL: Record<string, string> = { info: "Info", notice: "À noter", warning: "À vérifier" };
+
+/* Sévérité d'un changement → bande de couleur partagée (info reste neutre) */
+export function severityBand(severity: string): RiskBand {
+  return severity === "warning" ? "high" : severity === "notice" ? "moderate" : "low";
+}
+
+export const AUTHORIZATION_LABEL: Record<string, string> = {
+  authorized: "Autorisé",
+  unauthorized: "Non autorisé",
+};
+

@@ -160,3 +160,42 @@ jour de ce document (section « Résultats des lots »).
 - Les recommandations sont des estimations sur le modèle.
 - Sans base de vulnérabilités, l'exposition se lit dans les services ouverts.
 - La criticité inférée d'un serveur reste générique tant que l'opérateur ne la déclare pas.
+
+### Lot 2 — Inventaire et identités (livré le 18/10/2026)
+
+**Livré**
+- Migration `0003_inventory` : tables `asset_observations`, `asset_changes` et `cybermorph_settings`, plus des
+  colonnes d'autorisation et de scanner.
+- **Journal d'observations** : chaque fait est enregistré par attribut et par source :
+  - Nmap : MAC, constructeur, OS, ports, services ;
+  - mDNS, DNS ou heuristique : nom d'hôte ;
+  - hôte local : `ss` et nom ;
+  - table ARP : MAC ;
+  - Suricata DHCP (lot 3) : MAC et nom.
+- **Détection des changements une fois par cycle**, et non à chaque collecteur, pour éviter les faux changements
+  entre Nmap et `ss`. Délai de grâce de 12 min avant de déclarer un port fermé, et seulement si la même source a
+  bien sondé l'actif. Le premier passage sert de référence et ne produit aucun changement.
+- **Rapprochement conservateur des identités** :
+  - une MAC différente sur une même IP produit un conflit d'identité ;
+  - une même MAC sur plusieurs IP est signalée une fois par 24 h ;
+  - rien n'est jamais fusionné automatiquement.
+- **Confiance d'identité** : elle dépend de l'IP, de la MAC observée et corroborée, d'un nom annoncé ou résolu (un nom
+  déduit ne compte pas) et des conflits ouverts.
+- **Autorisation** :
+  - les actifs présents pendant l'apprentissage (48 h, `CYBERMORPH_LEARNING_HOURS`) sont autorisés ;
+  - un actif apparu ensuite est « non autorisé » jusqu'à validation ;
+  - le statut est déclarable via `PATCH`.
+- **Drapeau scanner** : il est posé automatiquement sur l'hôte CYBERMORPH.
+- **API** : `GET /api/inventory/`, `GET /api/inventory/{id}`, `GET /api/changes/`,
+  `POST /api/changes/{id}/acknowledge`.
+- **Interface** :
+  - vue « Inventaire » (identité, sources, statut, journal filtrable) ;
+  - section « Identité » de l'inspecteur ;
+  - panneau « Changements d'inventaire » dans la vue d'ensemble ;
+  - anneau ambre sur les actifs non autorisés.
+
+**Constats sur les données réelles**
+- La MAC de .1 est corroborée par Nmap, ARP et DHCP.
+- DHCP a fourni la MAC de .135, que Nmap ne voit pas pour l'hôte local.
+- Les noms `vmware-*` sont désormais identifiés comme « déduits ».
+- Premier changement réel : « port 8010 ouvert sur .135 », qui est l'instance de test lancée pour vérifier l'API.

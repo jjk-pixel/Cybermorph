@@ -6,6 +6,7 @@ from app.database import SessionLocal
 from app.models.asset import Asset
 from app.models.network_connection import NetworkConnection
 from app.collectors.network_utils import get_local_ip_and_interface
+from app.inventory.observations import record_observation
 
 
 def get_arp_neighbors(interface: str):
@@ -44,6 +45,8 @@ def sync_arp_connections():
                 continue
 
             seen_dest_ids.add(dest.id)
+            # La table ARP corrobore (ou contredit) la MAC vue par Nmap
+            record_observation(db, n["ip"], "arp", "mac", n["mac"], dest.id)
 
             existing = (
                 db.query(NetworkConnection)

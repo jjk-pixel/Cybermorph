@@ -1,11 +1,12 @@
 import type { ComponentType, SVGProps } from "react";
 import { useLive } from "../state/live";
 import { ui, useUi, type ViewId } from "../state/ui";
-import { BrandMark, IconAlert, IconExposure, IconIncident, IconMatrix, IconPath, IconSimulation, IconTimeline, IconTwin } from "./Icons";
+import { BrandMark, IconAlert, IconExposure, IconIncident, IconInventory, IconMatrix, IconPath, IconSimulation, IconTimeline, IconTwin } from "./Icons";
 
 const ITEMS: { id: ViewId; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { id: "overview", label: "Jumeau", icon: IconTwin },
   { id: "exposure", label: "Exposition", icon: IconExposure },
+  { id: "inventory", label: "Inventaire", icon: IconInventory },
   { id: "alerts", label: "Alertes", icon: IconAlert },
   { id: "incidents", label: "Incidents", icon: IconIncident },
   { id: "paths", label: "Chemins", icon: IconPath },
@@ -18,8 +19,10 @@ export function NavRail() {
   const view = useUi((s) => s.view);
   const incidents = useLive((s) => s.state?.stats.active_incidents ?? 0);
   const alerts24h = useLive((s) => s.state?.stats.alerts_24h ?? 0);
+  const unauthorized = useLive((s) => s.state?.stats.unauthorized_assets ?? 0);
 
-  const badge = (id: ViewId) => (id === "incidents" ? incidents : id === "alerts" ? alerts24h : 0);
+  const badge = (id: ViewId) =>
+    id === "incidents" ? incidents : id === "alerts" ? alerts24h : id === "inventory" ? unauthorized : 0;
 
   return (
     <nav className="rail" aria-label="Navigation principale">
@@ -40,7 +43,7 @@ export function NavRail() {
                 <Icon />
                 <span className="rail-label">{label}</span>
                 {count > 0 && (
-                  <span className={`rail-badge${id === "incidents" ? " is-hot" : ""}`} aria-label={`${count} en cours`}>
+                  <span className={`rail-badge${id === "incidents" || id === "inventory" ? " is-hot" : ""}`} aria-label={`${count} en cours`}>
                     {count > 99 ? "99+" : count}
                   </span>
                 )}

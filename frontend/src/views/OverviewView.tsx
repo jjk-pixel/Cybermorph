@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { EmptyState, EvidenceTag, Hops, Panel, PriorityTag, RiskTag, Score, Stat } from "../components/ui";
-import { ASSET_TYPE_LABEL, formatCount, formatTime, priorityBand, riskBand } from "../lib/format";
+import {
+  ASSET_TYPE_LABEL, CHANGE_TYPE_LABEL, formatCount, formatRelative, formatTime, priorityBand, riskBand, severityBand,
+} from "../lib/format";
 import { useAssetIndex } from "../lib/useAssets";
 import { useLive } from "../state/live";
 import { ui, useUi } from "../state/ui";
@@ -38,6 +40,7 @@ function Legend() {
       <div className="legend-group">
         <span className="legend-swatch sw-crown" /> Actif critique
         <span className="legend-swatch sw-choke" /> Point de blocage
+        <span className="legend-swatch sw-unauth" /> Non autorisé
       </div>
       <div className="legend-group legend-note">Anneau = rôle · altitude et auréole = score de risque</div>
     </div>
@@ -98,6 +101,25 @@ export function OverviewView() {
             </div>
           ) : (
             <EmptyState title="Aucun chemin significatif">Aucun enchaînement ne dépasse un score de 25.</EmptyState>
+          )}
+        </Panel>
+        <Panel
+          title="Changements d'inventaire"
+          meta={`${stats.changes_24h} sur 24 h`}
+          actions={<button type="button" className="text-button" onClick={() => ui.setView("inventory")}>Inventaire</button>}
+        >
+          {live.recent_changes.length === 0 ? (
+            <p className="muted small">Aucun changement notable : le réseau correspond à l'inventaire connu.</p>
+          ) : (
+            <ul className="change-list is-compact">
+              {live.recent_changes.slice(0, 4).map((c) => (
+                <li key={c.id} className={`change-row sev-${c.severity}${c.acknowledged ? " is-acknowledged" : ""}`}>
+                  <span className="mono change-time">{formatRelative(c.detected_at)}</span>
+                  <span className={`tag tag-${severityBand(c.severity)}`}>{CHANGE_TYPE_LABEL[c.change_type] ?? c.change_type}</span>
+                  <span className="change-text">{c.explanation}</span>
+                </li>
+              ))}
+            </ul>
           )}
         </Panel>
       </div>

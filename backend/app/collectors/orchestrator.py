@@ -11,6 +11,8 @@ from app.collectors.suricata_collector import sync_suricata_alerts
 from app.mitre.mapping_engine import apply_mitre_mapping
 from app.database import SessionLocal
 from app.collectors.snapshot_collector import capture_snapshot
+from app.inventory.observations import reconcile_cycle
+from app.models.asset import Asset
 
 logging.basicConfig(
     filename="/opt/cybermorph/backend/cybermorph.log",
@@ -23,6 +25,17 @@ def run_full_scan():
     start = datetime.now(UTC)
     logging.info("=== Début du cycle de scan CYBERMORPH ===")
     print(f"[CYBERMORPH][Orchestrateur] Cycle démarré à {start.isoformat()}")
+
+    # État avant le cycle, pour détecter les changements une seule fois, après tous les collecteurs d'inventaire
+    status_before = {}
+    try:
+        db = SessionLocal()
+        try:
+            status_before = {a.id: a.status for a in db.query(Asset).all()}
+        finally:
+            db.close()
+    except Exception as e:
+        logging.error(f"Lecture de l'état initial impossible : {e}")
 
     try:
         scan_network()
@@ -43,6 +56,18 @@ def run_full_scan():
     except Exception as e:
         logging.error(f"Erreur pendant la synchronisation ARP : {e}")
         print(f"[CYBERMORPH][Orchestrateur] Erreur ARP : {e}")
+    try:
+        db = SessionLocal()
+        try:
+            changes = reconcile_cycle(db, start, status_before)
+            db.commit()
+        finally:
+            db.close()
+        logging.info(f"Rapprochement d'inventaire : {len(changes)} changement(s) détecté(s).")
+        print(f"[CYBERMORPH][Inventaire] {len(changes)} changement(s) détecté(s).")
+    except Exception as e:
+        logging.error(f"Erreur pendant le rapprochement d'inventaire : {e}")
+        print(f"[CYBERMORPH][Orchestrateur] Erreur Inventaire : {e}")
     try:
         apply_risk_scoring()
         logging.info("Calcul du risque terminé avec succès.")
