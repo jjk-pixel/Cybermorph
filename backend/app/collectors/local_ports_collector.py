@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.asset import Asset
 from app.collectors.network_utils import get_local_ip_and_interface
-from app.collectors.nmap_collector import guess_asset_type
+from app.inventory.classification import classify_sensor_host
+from app.inventory.observations import record_observation
 
 
 def get_local_listening_ports() -> list[dict]:
@@ -57,11 +58,24 @@ def sync_local_asset():
 
         asset.open_ports = ",".join(map(str, unique_ports))
         asset.services = ",".join(services)
-        asset.asset_type = "server"  # l'asset local héberge toujours plusieurs services : toujours "server"
+        # L'hôte local héberge toujours plusieurs services : "server", sauf type déclaré par l'opérateur
+        asset.classification = classify_sensor_host()
+        if asset.asset_type_source != "declared":
+            asset.asset_type = "server"
         asset.status = "up"
         asset.last_seen = datetime.now(UTC)
         asset.hostname = socket.gethostname()
         asset.name = socket.gethostname()
+        # L'hôte CYBERMORPH lance les scans Nmap : ses sondes ne doivent pas être apprises comme du trafic normal
+        if asset.is_scanner is None:
+            asset.is_scanner = True
+            asset.scanner_reason = "Hôte du capteur CYBERMORPH : exécute les scans Nmap toutes les 5 minutes"
+
+        record_observation(db, local_ip, "local", "hostname", socket.gethostname(), asset.id)
+        for port in unique_ports:
+            record_observation(db, local_ip, "local", "open_port", port, asset.id)
+        for service in services:
+            record_observation(db, local_ip, "local", "service", service, asset.id)
         db.commit()
 
         print(f"[CYBERMORPH][LocalPorts] {local_ip} mis à jour → {asset.asset_type} (ports: {unique_ports})")

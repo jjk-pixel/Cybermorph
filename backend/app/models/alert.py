@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -19,3 +19,7 @@ class Alert(Base):
     first_seen = Column(DateTime(timezone=True), server_default=func.now())
     last_seen = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Colonne héritée d'une version antérieure, conservée pour ne perdre aucune donnée (plus alimentée)
+    detected_at = Column(DateTime(timezone=True), nullable=True)
+    # Lot 4 — preuves sources : ligne fast.log (fichier, position) et flow_id Suricata (eve.json) de l'alerte
+    evidence = Column(JSON, nullable=True)

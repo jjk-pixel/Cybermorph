@@ -1,6 +1,11 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
 from app.database import Base
+
+
+def _utcnow() -> datetime:
+    """UTC naïf : ces colonnes DateTime sont sans fuseau."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Incident(Base):
@@ -15,7 +20,7 @@ class Incident(Base):
     confidence = Column(Float, default=0.0)
     current_step = Column(Integer, default=1)
     total_steps = Column(Integer, default=1)
-    started_at = Column(DateTime, default=datetime.utcnow)
-    last_seen = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=_utcnow)
+    last_seen = Column(DateTime, default=_utcnow)
     metadata_json = Column(JSON, nullable=True)
 

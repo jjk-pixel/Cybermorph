@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 from app.database import get_db
 from app.models.snapshot import Snapshot
 
@@ -8,14 +8,21 @@ router = APIRouter(prefix="/api/timeline", tags=["timeline"])
 
 @router.get("/")
 def list_snapshots(db: Session = Depends(get_db), limit: int = 50):
-    snapshots = db.query(Snapshot).order_by(Snapshot.captured_at.desc()).limit(limit).all()
+    rows = (
+        db.query(Snapshot, Snapshot.state.isnot(None).label("has_state"))
+        .options(defer(Snapshot.state))
+        .order_by(Snapshot.captured_at.desc())
+        .limit(limit)
+        .all()
+    )
     return [
         {
             "id": s.id, "captured_at": s.captured_at, "assets_count": len(s.assets_summary),
             "connections_count": s.connections_count, "attack_paths_count": s.attack_paths_count,
             "highest_path_score": s.highest_path_score,
+            "has_state": bool(has_state),
         }
-        for s in snapshots
+        for s, has_state in rows
     ]
 
 
@@ -28,4 +35,6 @@ def get_snapshot(snapshot_id: int, db: Session = Depends(get_db)):
         "id": s.id, "captured_at": s.captured_at, "assets_summary": s.assets_summary,
         "connections_count": s.connections_count, "alerts_summary": s.alerts_summary,
         "attack_paths_count": s.attack_paths_count, "highest_path_score": s.highest_path_score,
+        # Topologie et inventaire complets ; absent (null) pour les snapshots antérieurs au lot 4
+        "state": s.state,
     }
