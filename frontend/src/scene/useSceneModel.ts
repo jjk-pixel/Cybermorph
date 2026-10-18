@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { AttackPath, LiveAsset, LiveIncident, LiveLink } from "../api/types";
+import { isCriticalLevel } from "../lib/format";
 import { useLive } from "../state/live";
 import { useUi } from "../state/ui";
 import { arcControl, computeLayout, linkSide, type Vec3 } from "./layout";
@@ -20,11 +21,14 @@ export function useSceneModel() {
   const focusIncident = useUi((s) => s.focusIncident);
   const simulation = useUi((s) => s.simulation);
   const replay = useUi((s) => s.replay);
+  const blast = useUi((s) => s.blast);
+  const highlight = useUi((s) => s.highlight);
 
   const liveAssets = live?.assets;
   const liveLinks = live?.links;
   const attackPaths = live?.attack_paths;
   const activeIncidents = live?.active_incidents;
+  const chokePoints = live?.choke_points;
 
   const assets: LiveAsset[] = useMemo(() => {
     const base = liveAssets ?? [];
@@ -68,9 +72,15 @@ export function useSceneModel() {
       simulation.newPaths.slice(0, 12).forEach((p, i) => pathTrace(p, "simulated", `sim-new-${i}`));
       simulation.escalatedPaths.slice(0, 12).forEach((p, i) => pathTrace(p, "simulated", `sim-esc-${i}`));
     }
-    if (focusPath) {
+    if (blast) {
+      // Rayon d'impact : meilleur chemin vers chaque actif atteignable, en hypothèse (violet pointillé)
+      blast.reachable.slice(0, 16).forEach((r) => result.push({ key: `blast-${r.asset_id}`, nodes: r.nodes, kind: "simulated" }));
+    }
+    if (highlight && highlight.nodes.length > 1) {
+      result.push({ key: "focus", nodes: highlight.nodes, kind: "predicted" });
+    } else if (focusPath) {
       pathTrace(focusPath, "predicted", "focus");
-    } else if (!simulation && !focusIncident && view === "overview" && attackPaths?.[0]) {
+    } else if (!simulation && !blast && !focusIncident && view === "overview" && attackPaths?.[0]) {
       // Par défaut, la vue d'ensemble montre le chemin d'attaque le plus probable
       pathTrace(attackPaths[0], "predicted", "top");
     }
@@ -90,7 +100,7 @@ export function useSceneModel() {
       }
     }
     return result;
-  }, [simulation, focusPath, focusIncident, view, attackPaths, activeIncidents]);
+  }, [simulation, blast, highlight, focusPath, focusIncident, view, attackPaths, activeIncidents]);
 
   const linkIndex = useMemo(() => new Map(links.map((l) => [`${l.source}>${l.target}`, l])), [links]);
 
@@ -103,16 +113,23 @@ export function useSceneModel() {
     for (const i of incidentList) if (i.current_asset_id != null) underAttack.add(i.current_asset_id);
     return {
       underAttack,
-      compromised: simulation?.compromisedAssetId ?? null,
+      compromised: simulation?.compromisedAssetId ?? blast?.asset_id ?? null,
       exposed: simulation?.exposedAssetId ?? null,
+      // Actifs critiques (cibles des chemins) et points de blocage calculés sur les chemins live
+      critical: new Map(assets.filter((a) => a.criticality && isCriticalLevel(a.criticality.level)).map((a) => [a.id, a.criticality.source])),
+      choke: new Set((chokePoints ?? []).map((c) => c.asset_id)),
     };
-  }, [activeIncidents, focusIncident, simulation]);
+  }, [activeIncidents, focusIncident, simulation, blast, assets, chokePoints]);
 
   const emphasis = useMemo(() => {
     const ids = new Set<number>();
     for (const t of traces) if (t.kind !== "incident-potential") t.nodes.forEach((n) => ids.add(n));
+    highlight?.nodes.forEach((n) => ids.add(n));
     return ids;
-  }, [traces]);
+  }, [traces, highlight]);
 
-  return { live, assets, positions, links, linkIndex, traces, markers, emphasis, replay };
+  // La scène s'assombrit autour de ce que l'opérateur isole : chemin, recommandation, simulation, rayon d'impact
+  const focusing = emphasis.size > 0 && (!!highlight || traces.some((t) => t.key === "focus" || t.kind === "simulated"));
+
+  return { live, assets, positions, links, linkIndex, traces, markers, emphasis, focusing, replay };
 }

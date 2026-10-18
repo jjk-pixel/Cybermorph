@@ -1642,6 +1642,146 @@ select.input {
 }
 
 /* ==========================================================================
+   Exposition, criticité, déclarations (lot 1)
+   ========================================================================== */
+
+/* Criticité : échelle de bleus (propriété de l'actif, pas une sévérité) ; pointillé = inférée */
+.tag-crit { border-style: dashed; color: var(--ink-3); }
+.tag-crit.is-declared { border-style: solid; }
+.tag-crit-medium { color: var(--ink-2); }
+.tag-crit-high { color: var(--ink); border-color: var(--blue); }
+.tag-crit-critical { color: var(--ink); border-color: var(--ink); background: rgba(230, 244, 255, 0.08); }
+
+.sw-crown { width: 10px; height: 10px; border: 2px solid var(--ink); border-radius: 50%; background: none; }
+.sw-choke { width: 12px; height: 12px; border: 2px solid var(--violet); background: none; clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
+
+.reco-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.reco-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9rem;
+  gap: 6px 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: rgba(10, 22, 38, 0.6);
+  text-align: left;
+}
+
+.reco-row:hover { border-color: var(--line); }
+.reco-row.is-selected { border-color: var(--violet); background: rgba(155, 92, 255, 0.1); }
+
+.reco-action { color: var(--ink); font-weight: 600; }
+
+.reco-impact {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.reco-meta,
+.reco-why {
+  grid-column: 1 / -1;
+  font-size: var(--fs-xs);
+}
+
+.reco-meta { color: var(--ink-2); }
+.reco-why { color: var(--ink-3); }
+
+.choke-mark {
+  width: 8px;
+  height: 8px;
+  background: var(--violet);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+
+.target-list .asset-row { grid-template-columns: auto auto minmax(0, 1fr) auto; }
+.target-list li + li,
+.choke-list li + li { border-top: 1px solid rgba(47, 107, 255, 0.1); }
+
+.entry-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(47, 107, 255, 0.1);
+}
+
+.entry-facts {
+  flex-basis: 100%;
+  font-size: var(--fs-xs);
+}
+
+.entry-kind { color: var(--ink-2); }
+.entry-incident { color: var(--red); }
+.entry-ids_alert_source { color: var(--amber); }
+
+.assumptions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 1.1em;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  list-style: disc;
+}
+
+.evidence-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 10px;
+  font-size: var(--fs-sm);
+}
+
+.evidence-reasons li {
+  display: grid;
+  grid-template-columns: 1.1em minmax(0, 1fr);
+  gap: 0 6px;
+}
+
+.evidence-reasons li .small { grid-column: 2; }
+.evidence-sign { font-family: var(--font-mono); font-weight: 700; }
+.evidence-reasons .is-for .evidence-sign { color: var(--cyan); }
+.evidence-reasons .is-against .evidence-sign { color: var(--amber); }
+
+.declare-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.declare-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.blast { margin-bottom: 12px; }
+.blast .text-button.is-on { color: var(--violet); }
+
+.blast-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+/* ==========================================================================
    Adaptatif
    ========================================================================== */
 
@@ -1798,6 +1938,10 @@ select.input {
   }
 
   .controls {
+    grid-template-columns: 1fr;
+  }
+
+  .reco-row {
     grid-template-columns: 1fr;
   }
 

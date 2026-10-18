@@ -35,6 +35,10 @@ function Legend() {
         <span className="legend-swatch sw-violet" /> Chemin prédit
         <span className="legend-swatch sw-red" /> Incident
       </div>
+      <div className="legend-group">
+        <span className="legend-swatch sw-crown" /> Actif critique
+        <span className="legend-swatch sw-choke" /> Point de blocage
+      </div>
       <div className="legend-group legend-note">Anneau = rôle · altitude et auréole = score de risque</div>
     </div>
   );

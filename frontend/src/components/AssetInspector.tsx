@@ -5,6 +5,7 @@ import {
 import { useAssetIndex } from "../lib/useAssets";
 import { useLive } from "../state/live";
 import { ui, useUi } from "../state/ui";
+import { AssetProfile } from "./AssetProfile";
 import { Meter, Panel, PriorityTag, RiskTag, Score } from "./ui";
 
 /* Fiche de l'asset sélectionné dans la scène : identité, exposition, explication du score, relations. */
@@ -52,6 +53,8 @@ export function AssetInspector() {
         </div>
         <RiskTag score={asset.risk_score} />
       </div>
+
+      <AssetProfile asset={asset} label={label} />
 
       <h3 className="section-title">Pourquoi ce score</h3>
       <ul className="breakdown">

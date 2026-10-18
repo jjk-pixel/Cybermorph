@@ -1,10 +1,11 @@
 import type { ComponentType, SVGProps } from "react";
 import { useLive } from "../state/live";
 import { ui, useUi, type ViewId } from "../state/ui";
-import { BrandMark, IconAlert, IconIncident, IconMatrix, IconPath, IconSimulation, IconTimeline, IconTwin } from "./Icons";
+import { BrandMark, IconAlert, IconExposure, IconIncident, IconMatrix, IconPath, IconSimulation, IconTimeline, IconTwin } from "./Icons";
 
 const ITEMS: { id: ViewId; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { id: "overview", label: "Jumeau", icon: IconTwin },
+  { id: "exposure", label: "Exposition", icon: IconExposure },
   { id: "alerts", label: "Alertes", icon: IconAlert },
   { id: "incidents", label: "Incidents", icon: IconIncident },
   { id: "paths", label: "Chemins", icon: IconPath },

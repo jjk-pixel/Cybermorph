@@ -17,6 +17,8 @@ from app.models.network_connection import NetworkConnection
 from app.models.snapshot import Snapshot
 from app.attack_graph.graph_engine import build_graph, find_paths_on_graph, EVIDENCE_RANK, EVIDENCE_LABELS
 from app.incidents.incident_engine import ACTIVE_STATUSES
+from app.exposure.criticality import effective_criticality
+from app.exposure.exposure_engine import compute_choke_points
 from app.security import websocket_authorized
 
 router = APIRouter(tags=["live"])
@@ -153,6 +155,9 @@ def get_live_state(db: Session) -> dict:
                 "open_ports": a.open_ports, "services": a.services, "zone": a.zone,
                 "risk_factors": _parse_risk_factors(a.risk_factors),
                 "last_seen": _iso(a.last_seen),
+                "asset_type_source": a.asset_type_source or "inferred",
+                "classification": a.classification,
+                "criticality": effective_criticality(a),
             }
             for a in assets
         ],
@@ -180,6 +185,8 @@ def get_live_state(db: Session) -> dict:
              "connection_types": p["connection_types"], "alert_evidence": p["alert_evidence"]}
             for p in paths
         ],
+        # Points de blocage des chemins ci-dessus (le détail chiffré est servi par /api/exposure)
+        "choke_points": compute_choke_points(paths),
         "active_incidents": active_incidents,
         "recent_alerts": _recent_alerts(db),
         "stats": {

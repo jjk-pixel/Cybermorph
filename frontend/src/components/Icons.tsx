@@ -24,6 +24,14 @@ export const IconTwin = (p: IconProps) => (
   </svg>
 );
 
+/* Cible protégée : actif critique au centre, chemins coupés autour */
+export const IconExposure = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="10" cy="10" r="2.2" />
+    <path d="M10 2.5a7.5 7.5 0 0 1 7.5 7.5M17.5 10a7.5 7.5 0 0 1-5 7.07M7.5 17.07A7.5 7.5 0 0 1 2.5 10M2.5 10a7.5 7.5 0 0 1 5-7.07" />
+  </svg>
+);
+
 export const IconAlert = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M10 2.5 18 17H2z" />

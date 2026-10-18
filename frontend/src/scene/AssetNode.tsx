@@ -15,6 +15,10 @@ type Props = {
   underAttack: boolean;
   compromised: boolean;
   exposed: boolean;
+  /* actif critique : "declared" ou "inferred" (null sinon) */
+  critical: "declared" | "inferred" | null;
+  /* point de blocage des chemins d'attaque */
+  choke: boolean;
   animate: boolean;
   onSelect: (id: number) => void;
   onHover: (id: number | null) => void;
@@ -35,7 +39,7 @@ function Shape({ type }: { type: string }) {
 }
 
 export function AssetNode({
-  asset, position, selected, hovered, dimmed, underAttack, compromised, exposed, animate, onSelect, onHover,
+  asset, position, selected, hovered, dimmed, underAttack, compromised, exposed, critical, choke, animate, onSelect, onHover,
 }: Props) {
   const body = useRef<Mesh>(null);
   const shell = useRef<Mesh>(null);
@@ -115,6 +119,22 @@ export function AssetNode({
         <mesh ref={shell}>
           <sphereGeometry args={[0.62, 24, 16]} />
           <meshBasicMaterial color={shellColor} wireframe transparent opacity={0.35} toneMapped={false} />
+        </mesh>
+      )}
+
+      {/* Couronne : actif critique, pleine si la criticité est déclarée, estompée si elle est inférée */}
+      {critical && (
+        <mesh position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.2, 0.018, 8, 6]} />
+          <meshBasicMaterial color={COLORS.ink} transparent opacity={(critical === "declared" ? 0.95 : 0.5) * opacity} toneMapped={false} />
+        </mesh>
+      )}
+
+      {/* Point de blocage : octogone violet au sol (calculé sur les chemins prédits) */}
+      {choke && (
+        <mesh rotation={[-Math.PI / 2, 0, Math.PI / 8]} position={[0, -position[1] + 0.02, 0]}>
+          <ringGeometry args={[0.8, 0.86, 8]} />
+          <meshBasicMaterial color={COLORS.violet} transparent opacity={0.85 * opacity} toneMapped={false} />
         </mesh>
       )}
 

@@ -132,3 +132,22 @@ export function splitList(value: string | null | undefined): string[] {
     .map((v) => v.trim())
     .filter(Boolean);
 }
+
+export const CRITICALITY_LABEL: Record<string, string> = {
+  low: "Faible",
+  medium: "Moyenne",
+  high: "Élevée",
+  critical: "Critique",
+};
+
+export const CRITICALITY_ORDER = ["low", "medium", "high", "critical"] as const;
+
+/* Actif critique au sens de l'exposition : cible des chemins d'attaque (mêmes niveaux que le backend). */
+export function isCriticalLevel(level: string | null | undefined): boolean {
+  return level === "high" || level === "critical";
+}
+
+export function formatConfidence(value: number | null | undefined): string {
+  return value == null ? "—" : `${Math.round(value * 100)} %`;
+}
+

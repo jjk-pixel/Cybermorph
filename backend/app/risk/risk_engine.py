@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, UTC
+from app.exposure.criticality import LEVEL_LABEL, LEVEL_POINTS, effective_criticality
 
 # --- Référentiel des ports à risque, avec leur poids et justification ---
 DANGEROUS_PORTS = {
@@ -52,11 +53,13 @@ def score_os_vulnerability(os_detected: str | None) -> tuple[float, list[str]]:
     return 10 * 0.25, factors
 
 
-def score_asset_criticality(asset_type: str) -> tuple[float, list[str]]:
-    """Critère 3 (poids 20%) : criticité selon le rôle de l'asset."""
-    weight = CRITICAL_ASSET_TYPES.get(asset_type, 0)
-    factors = [f"Asset critique ({asset_type}) : +{weight}"] if weight else [f"Asset peu critique ({asset_type}) : +0"]
-    return weight * 5 * 0.20, factors  # weight*5 pour ramener sur une échelle /100 avant pondération
+def score_asset_criticality(criticality: dict) -> tuple[float, list[str]]:
+    """Critère 3 (poids 20%) : criticité de l'actif, déclarée par l'opérateur ou inférée de son rôle."""
+    level = criticality["level"]
+    points = LEVEL_POINTS.get(level, 0)
+    origin = "déclarée" if criticality["source"] == "declared" else f"inférée, confiance {criticality['confidence']:.0%}"
+    factors = [f"Criticité {LEVEL_LABEL.get(level, level)} ({origin}) : +{points}"]
+    return float(points), factors
 
 
 def score_behavioral_signals(status: str) -> tuple[float, list[str]]:
@@ -93,7 +96,8 @@ def calculate_risk(asset) -> dict:
 
     s1, f1 = score_network_exposure(open_ports)
     s2, f2 = score_os_vulnerability(asset.os_detected)
-    s3, f3 = score_asset_criticality(asset.asset_type)
+    criticality = effective_criticality(asset)
+    s3, f3 = score_asset_criticality(criticality)
     s4, f4 = score_behavioral_signals(asset.status)
     s5, f5 = score_data_freshness(asset.last_seen)
 
@@ -115,6 +119,7 @@ def calculate_risk(asset) -> dict:
         "risk_score": total,
         "risk_level": level,
         "factors": all_factors,
+        "criticality": criticality,
         "breakdown": {
             "exposition_reseau": round(s1, 1),
             "vulnerabilite_os": round(s2, 1),

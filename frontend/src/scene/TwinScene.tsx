@@ -65,10 +65,9 @@ function CameraRig({ positions, animate }: { positions: Map<number, Vec3>; anima
 }
 
 function SceneContent({ animate }: { animate: boolean }) {
-  const { assets, positions, links, linkIndex, traces, markers, emphasis } = useSceneModel();
+  const { assets, positions, links, linkIndex, traces, markers, emphasis, focusing } = useSceneModel();
   const selectedId = useUi((s) => s.selectedAssetId);
   const hoveredId = useUi((s) => s.hoveredAssetId);
-  const focusing = emphasis.size > 0 && traces.some((t) => t.key === "focus" || t.kind === "simulated");
 
   return (
     <>
@@ -128,6 +127,8 @@ function SceneContent({ animate }: { animate: boolean }) {
             underAttack={markers.underAttack.has(asset.id)}
             compromised={markers.compromised === asset.id}
             exposed={markers.exposed === asset.id}
+            critical={markers.critical.get(asset.id) ?? null}
+            choke={markers.choke.has(asset.id)}
             animate={animate}
             onSelect={(id) => ui.selectAsset(id === selectedId ? null : id)}
             onHover={ui.hoverAsset}

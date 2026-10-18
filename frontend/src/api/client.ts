@@ -4,7 +4,10 @@
  */
 import type {
   Alert,
+  AssetDeclaration,
   AttackPath,
+  BlastRadius,
+  Exposure,
   Hypothesis,
   IncidentDetail,
   IncidentSummary,
@@ -58,6 +61,11 @@ const query = (params: Record<string, string | number | undefined>) => {
 
 export const api = {
   liveState: () => request<LiveState>("/api/live/state"),
+  exposure: (minScore = 25, maxLength = 4) =>
+    request<Exposure>(`/api/exposure/${query({ min_score: minScore, max_length: maxLength })}`),
+  blastRadius: (assetId: number) => request<BlastRadius>(`/api/exposure/blast-radius/${assetId}`),
+  declareAsset: (assetId: number, declaration: AssetDeclaration) =>
+    request<unknown>(`/api/assets/${assetId}`, { method: "PATCH", body: JSON.stringify(declaration) }),
   alerts: (limit = 200) => request<Alert[]>(`/api/alerts/${query({ limit })}`),
   incidents: () => request<IncidentSummary[]>("/api/incidents/"),
   incident: (id: number) => request<IncidentDetail>(`/api/incidents/${id}`),

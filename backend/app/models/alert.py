@@ -19,3 +19,5 @@ class Alert(Base):
     first_seen = Column(DateTime(timezone=True), server_default=func.now())
     last_seen = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Colonne héritée d'une version antérieure, conservée pour ne perdre aucune donnée (plus alimentée)
+    detected_at = Column(DateTime(timezone=True), nullable=True)

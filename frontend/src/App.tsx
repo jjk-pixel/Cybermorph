@@ -5,6 +5,7 @@ import { StatusBar } from "./components/StatusBar";
 import { startLive, stopLive, useLive } from "./state/live";
 import { useUi, type ViewId } from "./state/ui";
 import { AlertsView } from "./views/AlertsView";
+import { ExposureView } from "./views/ExposureView";
 import { IncidentsView } from "./views/IncidentsView";
 import { MitreView } from "./views/MitreView";
 import { OverviewView } from "./views/OverviewView";
@@ -17,6 +18,7 @@ const TwinScene = lazy(() => import("./scene/TwinScene"));
 
 const VIEWS: Record<ViewId, () => React.JSX.Element | null> = {
   overview: OverviewView,
+  exposure: ExposureView,
   alerts: AlertsView,
   incidents: IncidentsView,
   paths: PathsView,

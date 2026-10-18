@@ -5,6 +5,7 @@ from app.models.asset import Asset
 from app.models.alert import Alert
 from app.models.network_connection import NetworkConnection
 from app.correlation.alert_correlation import compute_alert_score
+from app.exposure.criticality import effective_criticality, is_target_level
 
 # Poids de transition, par type de service exposé sur la connexion cible
 SERVICE_EXPOSURE_WEIGHTS = {
@@ -62,6 +63,7 @@ def build_graph(db: Session) -> nx.DiGraph:
             asset_type=asset.asset_type,
             risk_score=asset.risk_score or 0.0,
             status=asset.status,
+            criticality=effective_criticality(asset)["level"],
         )
 
     connections = db.query(NetworkConnection).filter(NetworkConnection.status == "active").all()
@@ -160,20 +162,38 @@ def risk_label_for(score: float) -> str:
     return "low"
 
 
-def find_paths_on_graph(graph: nx.DiGraph, min_score: float = 0.0, max_length: int = 4) -> list[dict]:
+def is_target_node(data: dict) -> bool:
+    """
+    Cible d'un chemin d'attaque : actif critique (criticité élevée ou critique, déclarée ou inférée)
+    ou actif déjà très risqué. Repli sur le rôle pour un graphe construit sans criticité.
+    """
+    if data.get("risk_score", 0) >= 50:
+        return True
+    if "criticality" in data:
+        return is_target_level(data["criticality"])
+    return data.get("asset_type") in ("server", "router")
+
+
+def find_paths_on_graph(
+    graph: nx.DiGraph,
+    min_score: float = 0.0,
+    max_length: int = 4,
+    sources: list[int] | None = None,
+    targets: list[int] | None = None,
+) -> list[dict]:
     """
     Trouve les chemins simples vers les cibles à forte valeur d'un graphe déjà construit
     (graphe réel ou graphe simulé), évalue leur score cumulé et leur niveau de preuve.
+    `sources` / `targets` restreignent la recherche (rayon d'impact : une source, toutes les cibles).
     """
     results = []
 
-    high_value_targets = [
-        n for n, data in graph.nodes(data=True)
-        if data.get("risk_score", 0) >= 50 or data.get("asset_type") in ("server", "router")
-    ]
+    if targets is None:
+        targets = [n for n, data in graph.nodes(data=True) if is_target_node(data)]
+    source_nodes = list(graph.nodes) if sources is None else [n for n in sources if n in graph]
 
-    for source in graph.nodes:
-        for target in high_value_targets:
+    for source in source_nodes:
+        for target in targets:
             if source == target or len(results) >= MAX_TOTAL_PATHS:
                 continue
 

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 class AssetBase(BaseModel):
     name: str
@@ -25,6 +25,24 @@ class AssetOut(AssetBase):
     last_seen: datetime
     created_at: datetime
     updated_at: Optional[datetime] = None
+    asset_type_source: Optional[str] = None
+    classification: Optional[dict] = None
+    criticality: Optional[str] = None
+    criticality_reason: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+CriticalityLevel = Literal["low", "medium", "high", "critical"]
+AssetTypeValue = Literal["router", "server", "pc", "iot", "unknown"]
+
+
+class AssetDeclaration(BaseModel):
+    """
+    Attributs déclarés par l'opérateur. Seuls les champs présents dans la requête sont modifiés ;
+    `null` retire la déclaration et rend la main à l'inférence.
+    """
+    criticality: Optional[CriticalityLevel] = None
+    criticality_reason: Optional[str] = None
+    asset_type: Optional[AssetTypeValue] = None

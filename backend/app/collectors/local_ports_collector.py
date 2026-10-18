@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.asset import Asset
 from app.collectors.network_utils import get_local_ip_and_interface
-from app.collectors.nmap_collector import guess_asset_type
+from app.inventory.classification import classify_sensor_host
 
 
 def get_local_listening_ports() -> list[dict]:
@@ -57,7 +57,10 @@ def sync_local_asset():
 
         asset.open_ports = ",".join(map(str, unique_ports))
         asset.services = ",".join(services)
-        asset.asset_type = "server"  # l'asset local héberge toujours plusieurs services : toujours "server"
+        # L'hôte local héberge toujours plusieurs services : "server", sauf type déclaré par l'opérateur
+        asset.classification = classify_sensor_host()
+        if asset.asset_type_source != "declared":
+            asset.asset_type = "server"
         asset.status = "up"
         asset.last_seen = datetime.now(UTC)
         asset.hostname = socket.gethostname()

@@ -11,6 +11,24 @@ export type RiskFactors = {
   breakdown: Record<string, number>;
 };
 
+export type CriticalityLevel = "low" | "medium" | "high" | "critical";
+
+/* Criticité retenue : déclarée par l'opérateur (prime toujours) ou inférée de faits observés. */
+export type Criticality = {
+  level: CriticalityLevel;
+  source: "declared" | "inferred";
+  confidence: number;
+  reasons: string[];
+};
+
+/* Classification automatique : chaque règle appliquée est une preuve, pour ou contre le type retenu. */
+export type Classification = {
+  type: string;
+  confidence: number;
+  reasons: { reason: string; source: string; supports: boolean }[];
+  alternatives: { type: string; reasons: string[] }[];
+};
+
 export type LiveAsset = {
   id: number;
   ip: string;
@@ -27,6 +45,9 @@ export type LiveAsset = {
   zone: string | null;
   risk_factors: RiskFactors | null;
   last_seen: string | null;
+  asset_type_source: "declared" | "inferred";
+  classification: Classification | null;
+  criticality: Criticality;
 };
 
 export type EvidenceLevel = "voisinage_detecte" | "inferee" | "observee" | "alerte_ids";
@@ -133,9 +154,92 @@ export type LiveState = {
   edges: { source: number; target: number; connection_type: string; protocol: string | null; port: number | null }[];
   links: LiveLink[];
   attack_paths: AttackPath[];
+  choke_points: ChokePoint[];
   active_incidents: LiveIncident[];
   recent_alerts: Alert[];
   stats: LiveStats;
+};
+
+/* ---- Exposition (lot 1) ---- */
+
+export type ChokePoint = {
+  asset_id: number;
+  paths: number;
+  share: number;
+  score_sum: number;
+  max_score: number;
+  targets: number[];
+  sources: number[];
+};
+
+export type EntryKind = "incident" | "ids_alert_source" | "dangerous_service" | "assumed";
+export type EntryFact = { kind: EntryKind; label: string; detail: string | null };
+
+export type Recommendation = {
+  kind: "edge" | "node";
+  source_asset_id?: number;
+  destination_asset_id?: number;
+  asset_id?: number;
+  action: string;
+  rationale: string;
+  paths_removed: number;
+  paths_remaining: number;
+  score_reduction: number;
+  score_reduction_pct: number;
+  max_score_after: number;
+  targets_protected: number[];
+};
+
+export type ExposureTarget = {
+  asset_id: number;
+  criticality: Criticality;
+  why_target: string;
+  paths: number;
+  max_score: number;
+  qualified_entries: number[];
+};
+
+export type Exposure = {
+  generated_at: string;
+  parameters: { min_score: number; max_length: number };
+  summary: {
+    paths: number;
+    total_score: number;
+    max_score: number;
+    targets: number;
+    targets_reached: number;
+    qualified_entry_points: number;
+    paths_from_qualified_entries: number;
+  };
+  targets: ExposureTarget[];
+  entry_points: { asset_id: number; facts: EntryFact[]; paths: number; max_score: number }[];
+  choke_points: ChokePoint[];
+  recommendations: Recommendation[];
+  paths: (AttackPath & { entry: EntryFact[] })[];
+  assumptions: string[];
+};
+
+export type BlastRadius = {
+  asset_id: number;
+  hypothesis: string;
+  reachable: {
+    asset_id: number;
+    criticality: CriticalityLevel | null;
+    critical: boolean;
+    score: number;
+    hops: number;
+    nodes: number[];
+    evidence_level: EvidenceLevel;
+  }[];
+  reachable_count: number;
+  critical_reachable: number;
+  unreachable: number[];
+};
+
+export type AssetDeclaration = {
+  criticality?: CriticalityLevel | null;
+  criticality_reason?: string | null;
+  asset_type?: string | null;
 };
 
 export type IncidentSummary = {
@@ -217,3 +321,4 @@ export type Simulation = {
   created_at: string;
   completed_at: string | null;
 };
+
