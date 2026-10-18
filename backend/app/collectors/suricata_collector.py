@@ -103,10 +103,11 @@ def parse_fast_log(path: str = FAST_LOG_PATH) -> list[dict]:
         return []
 
 
-def sync_suricata_alerts():
+def sync_suricata_alerts() -> dict:
     read = read_new_lines()
     if read is None:
-        return
+        # Pas de fichier : aucune visibilité IDS, ce qui n'est pas une absence de menace
+        return {"status": "failed", "error": f"Fichier introuvable : {FAST_LOG_PATH}"}
     lines, inode, new_offset = read
     start_offset = new_offset - sum(len(line.encode("utf-8")) + 1 for line in lines)
     records = parse_fast_log_lines(lines, start_offset if start_offset >= 0 else None)
@@ -172,6 +173,7 @@ def sync_suricata_alerts():
 
     finally:
         db.close()
+    return {"lines_read": len(lines), "alerts_new": new_count, "occurrences_updated": updated_count}
 
 if __name__ == "__main__":
     sync_suricata_alerts()

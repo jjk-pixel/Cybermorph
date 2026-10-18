@@ -60,6 +60,14 @@ class TypeVersusRoleTest(unittest.TestCase):
         self.assertGreaterEqual(result["confidence"], 0.9)
         self.assertEqual(roles(result), {"gateway", "dns_server"})
 
+    def test_generic_nmap_os_class_falls_back_to_the_os_name(self):
+        # Cas réel : la NAT VMware est rangée par Nmap dans la classe « specialized »
+        result = classify_asset([53], ["domain"], "VMware", "VMware Player virtual NAT device", is_gateway=True,
+                                os_classes=[{"type": "specialized", "vendor": "VMware", "accuracy": "95"}])
+        self.assertEqual(result["type"], "router")
+        self.assertGreaterEqual(result["confidence"], 0.9)
+        self.assertNotIn("iot", result["scores"])
+
     def test_single_open_port(self):
         result = classify_asset([8080], ["http-proxy"], None, None)
         self.assertEqual(result["type"], "unknown")

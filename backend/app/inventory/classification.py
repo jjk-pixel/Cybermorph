@@ -52,7 +52,8 @@ OSCLASS_TYPES = {
     "router": "router", "broadband router": "router", "switch": "router", "wap": "router", "bridge": "router",
     "firewall": "firewall", "security-misc": "firewall",
     "printer": "iot", "webcam": "iot", "media device": "iot", "game console": "iot", "phone": "iot",
-    "power-device": "iot", "specialized": "iot", "storage-misc": "iot", "terminal": "iot",
+    "power-device": "iot", "storage-misc": "iot",
+    # « specialized », « general purpose », « terminal »… couvrent des équipements trop variés : pas d'indice de type
 }
 OS_WEIGHT = 0.55
 DEFAULT_OS_ACCURACY = 0.85   # empreinte sans précision connue (données antérieures)
