@@ -264,8 +264,8 @@ class RiskSignalsTest(unittest.TestCase):
         without = calculate_risk(a)
         with_ctx = calculate_risk(a, signals[1])
         self.assertEqual(without["breakdown"]["signaux_comportementaux"], 0)
-        # Écart (80) + alerte émise (+10) = 90 → 13,5 points
-        self.assertEqual(with_ctx["breakdown"]["signaux_comportementaux"], 13.5)
+        # Écart (80) + alerte émise (+10) = 90 → 22,5 points sur 25
+        self.assertEqual(with_ctx["breakdown"]["signaux_comportementaux"], 22.5)
         self.assertEqual(with_ctx["confidence"]["value"], 1.0)
         b = calculate_risk(db.get(Asset, 2), signals[2])
         self.assertLess(b["confidence"]["value"], 1.0)  # OS et MAC inconnus

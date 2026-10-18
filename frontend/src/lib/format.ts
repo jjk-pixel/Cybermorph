@@ -103,19 +103,17 @@ export const INCIDENT_STATUS_LABEL: Record<string, string> = {
 
 export const RISK_BREAKDOWN_LABEL: Record<string, string> = {
   exposition_reseau: "Exposition réseau",
-  vulnerabilite_os: "Vulnérabilité OS",
+  vulnerabilites: "Vulnérabilités",
   criticite_asset: "Criticité",
   signaux_comportementaux: "Comportement",
-  fraicheur_donnees: "Fraîcheur des données",
 };
 
-/* Poids maximal de chaque critère dans risk_engine (pour dessiner des jauges justes). */
+/* Poids maximal de chaque critère dans risk_engine, modèle 2 (pour dessiner des jauges justes). */
 export const RISK_BREAKDOWN_MAX: Record<string, number> = {
   exposition_reseau: 30,
-  vulnerabilite_os: 25,
+  vulnerabilites: 25,
   criticite_asset: 20,
-  signaux_comportementaux: 15,
-  fraicheur_donnees: 10,
+  signaux_comportementaux: 25,
 };
 
 /* Priorité Suricata : 1 = la plus sévère. */
