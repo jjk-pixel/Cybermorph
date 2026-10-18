@@ -50,10 +50,12 @@ export function AssetNode({
   const beacon = useRef<Mesh>(null);
 
   const down = asset.status === "down";
+  // Non observé au dernier balayage, ou données de plus d'une heure : l'état affiché peut ne plus être exact
+  const stale = !down && (asset.status === "unknown" || asset.freshness === "obsolete");
   const risk = Number(asset.risk_score ?? 0);
   const color = down ? COLORS.muted : RISK_COLOR[riskBand(risk)];
   const shellColor = compromised ? COLORS.violet : underAttack ? COLORS.red : null;
-  const opacity = dimmed ? 0.28 : down ? 0.45 : 1;
+  const opacity = dimmed ? 0.28 : down ? 0.45 : stale ? 0.65 : 1;
 
   useFrame(({ clock }, delta) => {
     if (!animate) return;
@@ -172,12 +174,13 @@ export function AssetNode({
       )}
 
       <Html position={[0, 0.72, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-        <div className={`node-label${selected ? " is-selected" : ""}${dimmed ? " is-dimmed" : ""}${down ? " is-down" : ""}`}>
+        <div className={`node-label${selected ? " is-selected" : ""}${dimmed ? " is-dimmed" : ""}${down ? " is-down" : ""}${stale ? " is-stale" : ""}`}>
           <span className="node-label-ip">{asset.ip}</span>
           {(hovered || selected) && (
             <span className="node-label-meta">
               {asset.hostname && asset.hostname !== asset.ip ? asset.hostname : ASSET_TYPE_LABEL[asset.asset_type] ?? asset.asset_type}
               {down ? " · hors ligne" : ""}
+              {stale ? (asset.status === "unknown" ? " · non observé" : " · données obsolètes") : ""}
               {unauthorized ? " · non autorisé" : ""}
               {asset.is_scanner ? " · scanner" : ""}
             </span>

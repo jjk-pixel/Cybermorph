@@ -117,10 +117,32 @@ export function AlertsView() {
 
       {traceId != null && (
         <Panel className="detail trace-panel" title={`Preuves de l'alerte #${traceId}`} meta="Du capteur aux conclusions" onClose={() => setTraceId(null)}>
+          {trace.data && <TraceNavigation alert={trace.data.alert} byIp={byIp} onRelation={focusPair} />}
           {trace.error && <ErrorNote message={trace.error} onRetry={trace.reload} />}
           {trace.data ? <TraceChain trace={trace.data} label={label} /> : !trace.error && <p className="muted">Chargement…</p>}
         </Panel>
       )}
+    </div>
+  );
+}
+
+/* De l'événement au jumeau : actif source, actif cible, relation concernée. */
+function TraceNavigation({ alert, byIp, onRelation }: {
+  alert: { source_ip: string; destination_ip: string };
+  byIp: Map<string, { id: number }>;
+  onRelation: (sourceIp: string, destinationIp: string) => void;
+}) {
+  const src = byIp.get(alert.source_ip);
+  const dst = byIp.get(alert.destination_ip);
+  return (
+    <div className="trace-nav" role="group" aria-label="Voir dans le jumeau">
+      <button type="button" className="text-button" disabled={!src} onClick={() => src && ui.selectAsset(src.id)}
+              title={src ? undefined : "Adresse hors inventaire"}>Actif source {alert.source_ip}</button>
+      <button type="button" className="text-button" disabled={!dst} onClick={() => dst && ui.selectAsset(dst.id)}
+              title={dst ? undefined : "Adresse hors inventaire"}>Actif cible {alert.destination_ip}</button>
+      <button type="button" className="text-button" disabled={!src || !dst} onClick={() => onRelation(alert.source_ip, alert.destination_ip)}>
+        Relation dans le jumeau
+      </button>
     </div>
   );
 }

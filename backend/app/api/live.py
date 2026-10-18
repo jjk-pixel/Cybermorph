@@ -238,7 +238,9 @@ def get_live_state(db: Session) -> dict:
         "attack_paths": [
             {"source": p["source"], "target": p["target"], "nodes": p["nodes"], "hops": p["hops"],
              "score": p["score"], "risk": p["risk"], "evidence_level": p["evidence_level"],
-             "connection_types": p["connection_types"], "alert_evidence": p["alert_evidence"]}
+             "connection_types": p["connection_types"], "alert_evidence": p["alert_evidence"],
+             "nature": p.get("nature"), "confidence": p.get("confidence"), "uncertainties": p.get("uncertainties", []),
+             "exploitation_demonstrated": p.get("exploitation_demonstrated"), "steps": p.get("steps", [])}
             for p in paths
         ],
         # Points de blocage des chemins ci-dessus (le détail chiffré est servi par /api/exposure)

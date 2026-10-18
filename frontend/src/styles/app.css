@@ -2255,3 +2255,153 @@ select.input {
     transition: none !important;
   }
 }
+
+/* ---- Renforcement du moteur : explication du risque, rôles, vulnérabilités, chemins, supervision ---- */
+
+.is-unknown { color: var(--amber); }
+.is-stale { color: var(--amber); }
+.node-label.is-stale .node-label-ip { color: var(--ink-2); font-style: italic; }
+
+.subsection-title {
+  margin: 12px 0 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.breakdown li.breakdown-criterion { grid-template-columns: 9.5rem 1fr 3.4rem; }
+.breakdown-items {
+  grid-column: 1 / -1;
+  margin: 2px 0 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line-strong);
+}
+.breakdown .breakdown-items li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 8px;
+  padding: 2px 0;
+  font-size: var(--fs-xs);
+}
+.breakdown-item-label { color: var(--ink-2); }
+.breakdown-why { grid-column: 1 / -1; color: var(--ink-3); }
+.breakdown .breakdown-items li.breakdown-note { display: block; color: var(--ink-3); font-style: italic; }
+
+.missing-list {
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 200, 87, 0.45);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+}
+.missing-list li { padding: 1px 0; }
+
+.role-list { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.role-chip {
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-tag);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.service-list li {
+  display: grid;
+  grid-template-columns: 5rem 6rem 1fr;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: var(--fs-xs);
+}
+
+.finding-list { display: grid; gap: 8px; }
+.finding { padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius-control); }
+.finding-confirmed { border-color: rgba(255, 59, 92, 0.6); }
+.finding-rejected { opacity: 0.6; }
+.finding-head { display: flex; gap: 8px; align-items: baseline; font-size: var(--fs-sm); }
+.finding-status { color: var(--amber); font-size: var(--fs-xs); }
+.finding-confirmed .finding-status { color: var(--red); }
+.finding-head .num { margin-left: auto; }
+.finding-decide { display: flex; gap: 6px; margin-top: 6px; }
+.finding-decide .input { flex: 1 1 auto; min-width: 0; }
+
+.nature-tag {
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  font-size: var(--fs-xs);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+}
+.nature-observed { border-color: rgba(255, 59, 92, 0.65); color: var(--red); }
+
+.path-steps { margin: 6px 0 10px 14px; display: grid; gap: 8px; }
+.path-step-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; font-size: var(--fs-sm); }
+.preconditions { margin-top: 3px; display: grid; gap: 2px; }
+.precondition {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: 0 8px;
+  font-size: var(--fs-xs);
+}
+.precondition .muted { grid-column: 2; }
+.precondition-status { color: var(--ink-3); }
+.precondition.is-satisfied .precondition-status { color: var(--cyan); }
+.precondition.is-unmet .precondition-status { color: var(--red); }
+.precondition.is-unknown .precondition-status,
+.precondition.is-not_observed .precondition-status { color: var(--amber); }
+.precondition.is-simulated .precondition-status { color: var(--violet); }
+.path-limits { margin-top: 10px; padding: 8px 10px; border: 1px dashed var(--line-strong); border-radius: var(--radius-control); }
+
+.collection-alert {
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 200, 87, 0.6);
+  border-radius: var(--radius-control);
+  background: rgba(255, 200, 87, 0.12);
+  color: var(--amber);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.issue-list { display: grid; gap: 4px; margin-top: 12px; }
+.issue { padding: 4px 8px; border-left: 3px solid var(--line-strong); font-size: var(--fs-sm); }
+.issue-info { border-left-color: var(--blue); color: var(--ink-2); }
+.issue-warning { border-left-color: var(--amber); }
+.issue-critical { border-left-color: var(--red); }
+
+.freshness-list li { display: grid; grid-template-columns: 8.5rem 11rem 1fr; gap: 8px; align-items: baseline; padding: 2px 0; font-size: var(--fs-sm); }
+.freshness-fresh { color: var(--cyan); }
+.freshness-stale { color: var(--amber); }
+.freshness-obsolete,
+.freshness-unknown { color: var(--ink-3); }
+
+.correlation-list { display: grid; gap: 6px; }
+.correlation { border: 1px solid var(--line); border-radius: var(--radius-control); }
+.correlation.is-open { border-color: var(--line-strong); }
+.correlation-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 6px 8px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.correlation-kind { font-size: var(--fs-sm); color: var(--ink); }
+.correlation-body { padding: 0 8px 8px; }
+.correlation-events { display: grid; gap: 3px; margin: 6px 0; }
+.correlation-events li { display: grid; grid-template-columns: 8.5rem 7rem 1fr; gap: 6px; align-items: baseline; }
+.event-type { color: var(--ink-3); font-size: var(--fs-xs); }
+
+.trace-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+
+.matrix-cell.is-observed.is-inferred { border-style: dashed; }
+.matrix-cell.is-observed.is-unconfirmed { border-style: dotted; background: rgba(155, 92, 255, 0.07); }
+
+@media (max-width: 720px) {
+  .freshness-list li,
+  .correlation-events li,
+  .service-list li { grid-template-columns: 1fr; }
+}

@@ -89,10 +89,48 @@ export const EVIDENCE_LABEL: Record<string, string> = {
 
 export const ASSET_TYPE_LABEL: Record<string, string> = {
   router: "Routeur",
+  firewall: "Pare-feu",
   server: "Serveur",
   pc: "Poste",
   iot: "Objet connecté",
   unknown: "Inconnu",
+};
+
+/* Présence : « unknown » = non observé au dernier balayage, ce qui n'est pas « hors ligne ». */
+export const STATUS_LABEL: Record<string, string> = { up: "en ligne", unknown: "non observé", down: "hors ligne" };
+
+export const FRESHNESS_LABEL: Record<string, string> = {
+  fresh: "données récentes",
+  stale: "données de plus de 15 min",
+  obsolete: "données de plus d'une heure",
+  unknown: "jamais observé",
+};
+
+export const RELATION_CLASS_LABEL: Record<string, string> = { observed: "observée", inferred: "inférée", declared: "déclarée" };
+
+export const PRECONDITION_LABEL: Record<string, string> = {
+  satisfied: "établi",
+  unmet: "non rempli",
+  unknown: "non démontré",
+  not_observed: "non observé",
+  simulated: "simulé",
+};
+
+export const FINDING_STATUS_LABEL: Record<string, string> = {
+  probable: "Probable (version annoncée)",
+  uncertain: "Incertaine",
+  confirmed: "Confirmée",
+  rejected: "Rejetée",
+  not_observed: "Plus observée",
+};
+
+export const TECHNIQUE_STATUS_LABEL: Record<string, string> = { observed: "Observée", inferred: "Inférée", unconfirmed: "Non confirmée" };
+
+export const CORRELATION_KIND_LABEL: Record<string, string> = {
+  port_probe: "Balayage de ports d'une cible",
+  new_service_activity: "Nouveau service puis activité",
+  profile_change: "Changement de profil",
+  address_activity: "Événements multiples sur une adresse",
 };
 
 export const INCIDENT_STATUS_LABEL: Record<string, string> = {

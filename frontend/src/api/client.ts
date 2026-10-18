@@ -26,8 +26,14 @@ import type {
   SimulationResult,
   SnapshotDetail,
   SnapshotSummary,
+  Correlation,
+  PathLimits,
+  RiskHistoryPoint,
+  SystemHealth,
   Technique,
-} from "./types";
+  VulnerabilityFinding,
+  VulnerabilitySources,
+} from "./types.ts";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -94,7 +100,16 @@ export const api = {
   incidents: () => request<IncidentSummary[]>("/api/incidents/"),
   incident: (id: number) => request<IncidentDetail>(`/api/incidents/${id}`),
   attackPaths: (minScore = 0, maxLength = 4) =>
-    request<{ count: number; paths: AttackPath[] }>(`/api/attack-paths/${query({ min_score: minScore, max_length: maxLength })}`),
+    request<{ count: number; paths: AttackPath[]; limits?: PathLimits; note?: string }>(`/api/attack-paths/${query({ min_score: minScore, max_length: maxLength })}`),
+  systemHealth: () => request<SystemHealth>("/api/system/health"),
+  correlations: (params: { asset_id?: number; kind?: string; limit?: number } = {}) =>
+    request<Correlation[]>(`/api/correlations/${query(params)}`),
+  vulnerabilities: (params: { asset_id?: number; status?: string } = {}) =>
+    request<VulnerabilityFinding[]>(`/api/vulnerabilities/${query(params)}`),
+  vulnerabilitySources: () => request<VulnerabilitySources>("/api/vulnerabilities/sources"),
+  decideFinding: (id: number, status: "confirmed" | "rejected", note: string) =>
+    request<VulnerabilityFinding>(`/api/vulnerabilities/${id}`, { method: "PATCH", body: JSON.stringify({ status, note }) }),
+  riskHistory: (assetId: number, limit = 288) => request<RiskHistoryPoint[]>(`/api/assets/${assetId}/risk-history${query({ limit })}`),
   techniques: () => request<Technique[]>("/api/attack-techniques/"),
   observedTechniques: () => request<ObservedTechnique[]>("/api/attack-techniques/observed"),
   timeline: (limit = 288) => request<SnapshotSummary[]>(`/api/timeline/${query({ limit })}`),

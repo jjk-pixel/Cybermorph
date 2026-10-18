@@ -13,7 +13,7 @@ from app.logging_config import describe_exception
 app = FastAPI(
     title="CYBERMORPH",
     description="Cybersecurity Network Digital Twin",
-    version="0.4.0"
+    version="0.5.0"
 )
 logger = logging.getLogger("cybermorph.api")
 
@@ -56,7 +56,7 @@ def root():
     return {
         "project": "CYBERMORPH",
         "status": "online",
-        "version": "0.4.0"
+        "version": "0.5.0"
     }
 
 @app.get("/api/health")

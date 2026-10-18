@@ -22,6 +22,7 @@ const VIEW_TITLE = {
   mitre: "Matrice MITRE ATT&CK",
   timeline: "Historique des scans",
   simulations: "Simulations what-if",
+  health: "Supervision de la collecte",
 } as const;
 
 function useNow(intervalMs = 5000) {
@@ -38,6 +39,7 @@ export function StatusBar() {
   const error = useLive((s) => s.error);
   const stats = useLive((s) => s.state?.stats);
   const lastScan = useLive((s) => s.state?.last_scan_at);
+  const collection = useLive((s) => s.state?.collection);
   const view = useUi((s) => s.view);
   const planView = useUi((s) => s.planView);
   const replay = useUi((s) => s.replay);
@@ -78,9 +80,15 @@ export function StatusBar() {
       </div>
 
       <div className="statusbar-right">
-        <span className="scan-age" title={lastScan ? formatDateTime(lastScan) : undefined}>
+        <span className="scan-age" title={lastScan ? `${formatDateTime(lastScan)} · collecte toutes les ${collection?.interval_minutes ?? 5} min` : undefined}>
           Dernier scan {formatRelative(lastScan, now)}
         </span>
+        {collection && (collection.late || collection.failing_steps.length > 0) && (
+          <button type="button" className="collection-alert" onClick={() => ui.setView("health")}
+                  title="Une partie des données n'est plus à jour : l'absence d'événement n'est pas une absence de menace">
+            {collection.late ? "Collecte en retard" : `${collection.failing_steps.length} étape(s) en échec`}
+          </button>
+        )}
         <span className={`link link-${status}`} title={error ?? undefined}>
           <span className="link-dot" aria-hidden />
           {LINK_TEXT[status]}

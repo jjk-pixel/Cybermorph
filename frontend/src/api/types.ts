@@ -4,11 +4,32 @@
  * et doivent être lues comme UTC (voir lib/format.ts → parseDate).
  */
 
+export type RiskItem = { label: string; raw: number; justification: string; evidence: string[] };
+
+export type RiskContributor = {
+  criterion: string;
+  label: string;
+  max: number;
+  raw: number;
+  points: number;
+  items: RiskItem[];
+  note: string | null;
+};
+
 export type RiskFactors = {
   risk_score: number;
   risk_level: string;
   factors: string[];
   breakdown: Record<string, number>;
+  /* modèle 2 : absents des scores calculés avant le lot D */
+  model_version?: number;
+  computed_at?: string;
+  assessment?: "potential";
+  disclaimer?: string;
+  contributors?: RiskContributor[];
+  missing_data?: string[];
+  confidence?: { value: number; reasons: string[] };
+  compromise_indicators?: { incident_id: number; step: number; label: string }[];
 };
 
 export type CriticalityLevel = "low" | "medium" | "high" | "critical";
@@ -22,12 +43,34 @@ export type Criticality = {
 };
 
 /* Classification automatique : chaque règle appliquée est une preuve, pour ou contre le type retenu. */
+export type AssetRole = { role: string; label: string; confidence: number; reasons: string[]; source: string };
+
+export type ServiceDetail = {
+  port: number;
+  proto?: string;
+  name?: string | null;
+  product?: string | null;
+  version?: string | null;
+  extrainfo?: string | null;
+  cpe?: string | null;
+  source?: string;
+};
+
 export type Classification = {
   type: string;
   confidence: number;
-  reasons: { reason: string; source: string; supports: boolean }[];
-  alternatives: { type: string; reasons: string[] }[];
+  reasons: { reason: string; source: string; supports: boolean; type?: string | null; weight?: number }[];
+  alternatives: { type: string; reasons: string[]; score?: number }[];
+  /* modèle 2 (lot A) : type, rôles et services distincts */
+  model?: number;
+  decision?: "assigned" | "insufficient" | "contradictory";
+  scores?: Record<string, number>;
+  roles?: AssetRole[];
+  services?: ServiceDetail[];
+  missing?: string[];
 };
+
+export type Freshness = "fresh" | "stale" | "obsolete" | "unknown";
 
 export type LiveAsset = {
   id: number;
@@ -51,6 +94,7 @@ export type LiveAsset = {
   authorization: "authorized" | "unauthorized" | null;
   is_scanner: boolean;
   open_deviations: number;
+  freshness?: Freshness;
 };
 
 export type EvidenceLevel = "voisinage_detecte" | "inferee" | "observee" | "alerte_ids";
@@ -69,12 +113,56 @@ export type LiveLink = {
   weight: number;
   connection_types: string[];
   evidence_level: EvidenceLevel;
-  details: { protocol: string | null; port: number | null; connection_type: string | null; source?: string | null; last_seen?: string | null }[];
+  details: {
+    protocol: string | null;
+    port: number | null;
+    connection_type: string | null;
+    source?: string | null;
+    last_seen?: string | null;
+    relation_class?: RelationClass;
+    origin?: string;
+    confidence?: number;
+    reason?: string;
+    valid_until?: string | null;
+  }[];
   alert_summary: AlertSummary | null;
   /* provenance de la relation : plusieurs peuvent coexister sur une paire */
   provenance: { observed: boolean; inferred: boolean; declared: boolean; ids: boolean };
   observed_sources: string[];
   last_seen: string | null;
+  confidence?: number | null;
+  relation_classes?: RelationClass[];
+};
+
+export type RelationClass = "observed" | "inferred" | "declared";
+
+export type Precondition = {
+  condition: string;
+  status: "satisfied" | "unmet" | "unknown" | "not_observed" | "simulated";
+  evidence: string;
+  alert_ids?: number[];
+};
+
+export type PathStep = {
+  source: number;
+  target: number;
+  weight: number;
+  confidence?: number | null;
+  relation_classes?: RelationClass[];
+  services?: number[];
+  preconditions?: Precondition[];
+  uncertainties?: string[];
+  exploit_evidence?: string[];
+  observed_activity?: boolean;
+};
+
+export type PathLimits = {
+  max_length: number;
+  max_paths_per_pair: number;
+  max_total_paths: number;
+  truncated_pairs: [number, number][];
+  total_limit_reached: boolean;
+  excluded_transitions: { source: number; target: number; reason: string }[];
 };
 
 export type AttackPath = {
@@ -93,6 +181,13 @@ export type AttackPath = {
   path_ips?: (string | null)[];
   // champ ajouté par les simulations
   score_before?: number;
+  // lot F : nature du chemin et explication de chaque saut
+  nature?: "observed" | "hypothetical";
+  confidence?: number;
+  exploitation_demonstrated?: boolean;
+  uncertainties?: string[];
+  steps?: PathStep[];
+  simulated?: boolean;
 };
 
 export type IncidentStep = {
@@ -156,10 +251,19 @@ export type LiveStats = {
   open_deviations: number;
 };
 
+export type CollectionSummary = {
+  interval_minutes: number;
+  last_cycle_at: string | null;
+  last_cycle_status: string | null;
+  late: boolean;
+  failing_steps: string[];
+};
+
 export type LiveState = {
   type: "state_update";
   generated_at: string;
   last_scan_at: string | null;
+  collection?: CollectionSummary;
   assets: LiveAsset[];
   edges: { source: number; target: number; connection_type: string; protocol: string | null; port: number | null }[];
   links: LiveLink[];
@@ -305,11 +409,37 @@ export type Technique = {
   platform: string | null;
 };
 
+export type TechniqueStatus = "observed" | "inferred" | "unconfirmed";
+
+export type TechniqueEvidence = {
+  id: number;
+  event_type: "alert" | "deviation";
+  event_id: number;
+  status: TechniqueStatus;
+  status_label: string;
+  source: string;
+  confidence: number;
+  reason: string | null;
+  observations: number;
+  first_seen: string | null;
+  last_seen: string | null;
+  event?: { message: string; source_ip: string | null; destination_ip: string | null; priority?: number | null; kind?: string };
+};
+
 export type ObservedTechnique = {
   technique_id: string;
   name: string;
   tactic: string;
-  alerts: { alert_id: number; message: string; occurrence_count: number; confidence: number; matched_on: string | null }[];
+  alerts: { alert_id: number; message: string; occurrence_count: number; confidence: number; matched_on: string | null; status?: TechniqueStatus }[];
+  status?: TechniqueStatus;
+  status_label?: string;
+  observations?: number;
+  first_seen?: string | null;
+  last_seen?: string | null;
+  sources?: string[];
+  evidence?: TechniqueEvidence[];
+  reference?: string;
+  note?: string;
 };
 
 export type SnapshotSummary = {
@@ -547,3 +677,83 @@ export type IncidentTrace = {
   trigger: AlertTrace | null;
   steps: { sequence: number; source_asset_id: number; destination_asset_id: number; status: string; confidence: number; evidence_type: string | null; detected_at: string | null }[];
 };
+
+/* ---- Renforcement du moteur (lots E, G, H) ---- */
+
+export type FindingStatus = "probable" | "uncertain" | "confirmed" | "rejected" | "not_observed";
+
+export type VulnerabilityFinding = {
+  id: number;
+  asset_id: number;
+  port: number | null;
+  cpe: string | null;
+  product: string | null;
+  version: string | null;
+  cve_id: string;
+  source: string;
+  cvss_score: number | null;
+  cvss_vector: string | null;
+  severity: string | null;
+  description: string | null;
+  references: string[];
+  status: FindingStatus;
+  status_reason: string | null;
+  last_checked_at: string;
+  validated_note: string | null;
+};
+
+export type VulnerabilitySources = {
+  configured: boolean;
+  sources: { name: string; available: boolean }[];
+  last_run: (Record<string, unknown> & { at: string; note?: string }) | null;
+};
+
+export type CorrelationEvent = { type: "alert" | "deviation" | "change"; id: number; at: string | null; summary: string };
+
+export type Correlation = {
+  id: number;
+  kind: "port_probe" | "new_service_activity" | "profile_change" | "address_activity";
+  asset_id: number | null;
+  ip: string | null;
+  window_start: string;
+  window_end: string;
+  events: CorrelationEvent[];
+  event_count: number;
+  reasoning: string;
+  relation: "temporal" | "same_target" | "same_address";
+  relation_label: string;
+  confidence: number;
+  techniques: string[];
+};
+
+export type StepHealth = {
+  collector: string;
+  label: string;
+  last_run_at: string | null;
+  last_status: string | null;
+  last_error: string | null;
+  last_duration_s: number | null;
+  last_success_at: string | null;
+  consecutive_failures: number;
+};
+
+export type SystemHealth = {
+  generated_at: string;
+  status: "ok" | "degraded" | "failing";
+  cycle: {
+    interval_minutes: number;
+    last_cycle_at: string | null;
+    last_cycle_status: string | null;
+    last_cycle_duration_s: number | null;
+    late: boolean;
+    recent: { at: string; status: string; duration_s: number | null }[];
+  };
+  timer: { available: boolean; active_state?: string; last_trigger?: string | null };
+  last_scan: { executed_at: string | null; status: string | null; succeeded_at: string | null };
+  steps: StepHealth[];
+  assets: { asset_id: number; ip: string; status: string; last_seen: string | null; age_s: number | null; freshness: Freshness }[];
+  issues: { severity: "info" | "warning" | "critical"; message: string; collector?: string }[];
+  refresh_note: string;
+};
+
+export type RiskHistoryPoint = { computed_at: string; score: number; level: string; confidence: number | null };

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { api } from "../api/client";
 import type { ObservedTechnique, Technique } from "../api/types";
 import { EmptyState, ErrorNote, Panel } from "../components/ui";
-import { formatCount } from "../lib/format";
+import { formatCount, formatDateTime, TECHNIQUE_STATUS_LABEL } from "../lib/format";
 import { useResource } from "../lib/useResource";
 
 /* Ordre canonique des tactiques ATT&CK Enterprise (de la reconnaissance à l'impact). */
@@ -60,19 +60,23 @@ export function MitreView() {
               ) : (
                 column.techniques.map((t) => {
                   const seen = observedById.get(t.technique_id);
-                  const hits = seen?.alerts.reduce((sum, a) => sum + a.occurrence_count, 0) ?? 0;
+                  const hits = seen?.observations ?? seen?.alerts.reduce((sum, a) => sum + a.occurrence_count, 0) ?? 0;
                   return (
                     <button
                       key={t.technique_id}
                       type="button"
                       role="cell"
-                      className={`matrix-cell${seen ? " is-observed" : ""}${selected === t.technique_id ? " is-selected" : ""}`}
+                      className={`matrix-cell${seen ? ` is-observed is-${seen.status ?? "inferred"}` : ""}${selected === t.technique_id ? " is-selected" : ""}`}
                       aria-pressed={selected === t.technique_id}
                       onClick={() => setSelected(selected === t.technique_id ? null : t.technique_id)}
                     >
                       <span className="mono matrix-id">{t.technique_id}</span>
                       <span className="matrix-name">{t.name}</span>
-                      {seen && <span className="mono matrix-hits">{formatCount(hits)} occ.</span>}
+                      {seen && (
+                        <span className="mono matrix-hits">
+                          {seen.status ? `${TECHNIQUE_STATUS_LABEL[seen.status]} · ` : ""}{formatCount(hits)} occ.
+                        </span>
+                      )}
                     </button>
                   );
                 })
@@ -87,7 +91,29 @@ export function MitreView() {
               <span className="mono">{detailTechnique.technique_id}</span> {detailTechnique.name}
             </h3>
             <p className="muted">{detailTechnique.description}</p>
-            {detail ? (
+            {detail?.evidence ? (
+              <>
+                <p className="small">
+                  Statut <strong>{TECHNIQUE_STATUS_LABEL[detail.status ?? "unconfirmed"]}</strong>
+                  <span className="muted"> · {detail.note}</span>
+                </p>
+                <ul className="evidence-list">
+                  {detail.evidence.map((e) => (
+                    <li key={e.id}>
+                      <span className="evidence-msg">{e.event?.message ?? `${e.event_type} #${e.event_id}`}</span>
+                      <span className="mono num">×{formatCount(e.observations)}</span>
+                      <span className="mono num" title="Confiance du rapprochement">{Math.round(e.confidence * 100)} %</span>
+                      <span className="evidence-reason">
+                        {TECHNIQUE_STATUS_LABEL[e.status]} ({e.source === "flow_analysis" ? "mesuré dans les flux" : "signature IDS"})
+                        {e.event?.source_ip ? ` · ${e.event.source_ip} → ${e.event.destination_ip}` : ""}
+                        {e.last_seen ? ` · ${formatDateTime(e.last_seen)}` : ""}
+                        {e.reason ? ` · ${e.reason}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : detail ? (
               <ul className="evidence-list">
                 {detail.alerts.map((a) => (
                   <li key={a.alert_id}>
@@ -105,6 +131,7 @@ export function MitreView() {
         )}
         <p className="muted small">
           CYBERMORPH ne suit qu'un sous-ensemble d'ATT&CK, limité à ce que ses capteurs réseau peuvent réellement observer. Les colonnes « non suivi » sont hors de portée des capteurs actuels.
+          Observée : comportement mesuré dans les flux. Inférée : déduite du nom d'une signature IDS répétée. Non confirmée : événement isolé.
         </p>
       </Panel>
     </div>
