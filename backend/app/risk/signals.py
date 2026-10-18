@@ -99,4 +99,15 @@ def collect_signals(db: Session, now: datetime | None = None) -> dict[int, dict]
     for asset_id, findings in _vulnerability_context(db).items():
         if asset_id in result:
             result[asset_id]["vulnerabilities"] = findings
+    configured = _vulnerability_source_configured()
+    for entry in result.values():
+        entry["vulnerability_source"] = configured
     return result
+
+
+def _vulnerability_source_configured() -> bool:
+    try:
+        from app.vulnerabilities.sources import configured_sources
+    except ImportError:
+        return False
+    return any(s.available() for s in configured_sources())

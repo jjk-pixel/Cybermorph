@@ -1,0 +1,21 @@
+{
+  "_comment": "ENREGISTREMENTS SYNTHÉTIQUES DE TEST, au format NVD API 2.0. Identifiants CVE-0000-* volontairement fictifs : ils ne désignent aucune vulnérabilité réelle.",
+  "vulnerabilities": [
+    {"cve": {"id": "CVE-0000-0001", "published": "2026-01-01T00:00:00.000",
+      "descriptions": [{"lang": "en", "value": "SYNTHETIC TEST RECORD: range 8.5 <= v < 9.8."}],
+      "metrics": {"cvssMetricV31": [{"cvssData": {"baseScore": 8.1, "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H", "baseSeverity": "HIGH"}}]},
+      "configurations": [{"nodes": [{"operator": "OR", "cpeMatch": [{"vulnerable": true, "criteria": "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "versionStartIncluding": "8.5", "versionEndExcluding": "9.8"}]}]}],
+      "references": [{"url": "https://example.invalid/synthetic-0001"}]}},
+    {"cve": {"id": "CVE-0000-0002", "published": "2026-01-02T00:00:00.000",
+      "descriptions": [{"lang": "en", "value": "SYNTHETIC TEST RECORD: exact version 1.24.0, no CVSS."}],
+      "metrics": {},
+      "configurations": [{"nodes": [{"operator": "OR", "cpeMatch": [{"vulnerable": true, "criteria": "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*"}]}]}],
+      "references": []}},
+    {"cve": {"id": "CVE-0000-0003", "published": "2026-01-03T00:00:00.000",
+      "descriptions": [{"lang": "en", "value": "SYNTHETIC TEST RECORD: fixed before 8.0.30."}],
+      "metrics": {"cvssMetricV31": [{"cvssData": {"baseScore": 6.5, "baseSeverity": "MEDIUM"}}]},
+      "configurations": [{"nodes": [{"operator": "OR", "cpeMatch": [{"vulnerable": true, "criteria": "cpe:2.3:a:mysql:mysql:*:*:*:*:*:*:*:*", "versionEndExcluding": "8.0.30"}]}]}],
+      "references": []}},
+    {"cve": {"id": "NOT-A-CVE", "configurations": []}}
+  ]
+}

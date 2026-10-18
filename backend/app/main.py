@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app import models  # noqa: F401  (enregistre toutes les tables)
-from app.api import assets, network_connections, attack_paths, alerts, attack_techniques, simulations, timeline, live, incidents, exposure, inventory, behavior, history, trace
+from app.api import assets, network_connections, attack_paths, alerts, attack_techniques, simulations, timeline, live, incidents, exposure, inventory, behavior, history, trace, vulnerabilities
 from fastapi.middleware.cors import CORSMiddleware
 from app.security import TokenAuthMiddleware, CORS_ORIGINS
 
@@ -33,6 +33,7 @@ app.include_router(inventory.router)
 app.include_router(behavior.router)
 app.include_router(history.router)
 app.include_router(trace.router)
+app.include_router(vulnerabilities.router)
 
 @app.get("/")
 def root():

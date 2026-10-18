@@ -1,7 +1,7 @@
 """
 Cycle de collecte CYBERMORPH (timer systemd toutes les 5 min).
 
-Ordre : nmap → local → arp → inventaire → suricata → mitre → eve → risque → snapshot → incidents.
+Ordre : nmap → local → arp → inventaire → suricata → mitre → eve → vulnérabilités → risque → snapshot → incidents.
 - Un seul cycle à la fois (verrou) ; un lancement concurrent est tracé « skipped » et ne fait rien.
 - Chaque étape est tracée dans `collector_runs` ; une étape en échec n'empêche pas les suivantes.
 - Arrêt propre sur SIGTERM/SIGINT : l'étape en cours se termine « interrupted », les suivantes ne sont pas lancées.
@@ -25,6 +25,7 @@ from app.mitre.mapping_engine import apply_mitre_mapping
 from app.models.alert import Alert
 from app.models.asset import Asset
 from app.risk.apply_risk import apply_risk_scoring
+from app.vulnerabilities.service import refresh_findings
 
 logger = configure_logging()
 
@@ -109,6 +110,7 @@ def _run_cycle(cycle_id: str, start: datetime) -> dict:
         ("suricata", sync_suricata_alerts),
         ("mitre", _with_session(apply_mitre_mapping)),
         ("eve", _with_session(_eve)),
+        ("vulnerabilities", _with_session(refresh_findings)),
         # Le risque est calculé après les alertes et les flux : il tient compte des derniers faits observés
         ("risk", apply_risk_scoring),
         ("snapshot", capture_snapshot),
