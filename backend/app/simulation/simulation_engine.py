@@ -31,12 +31,12 @@ def apply_hypothesis(graph: nx.DiGraph, hypothesis: dict) -> nx.DiGraph:
         if asset_id not in graph.nodes:
             raise ValueError(f"Asset #{asset_id} introuvable dans le graphe")
 
-        # Un asset compromis : toutes ses arêtes sortantes deviennent "déclarées" avec confiance forte,
-        # simulant qu'un attaquant ayant ce pied-à-terre peut exploiter les connexions déjà connues à leur poids maximal.
+        # Un attaquant qui tient cet actif exploite plus facilement ses relations connues. Les arêtes sont marquées
+        # « simulées » : leur preuve n'est PAS modifiée (une hypothèse n'est jamais une déclaration ni une observation).
         for _, target, data in graph.out_edges(asset_id, data=True):
-            data["weight"] = min(data["weight"] * 1.3, 100.0)
-            if "declared" not in data["connection_types"]:
-                data["connection_types"] = data["connection_types"] + ["declared"]
+            data["weight"] = round(min(data["weight"] * 1.3, 100.0), 1)
+            data["simulated"] = True
+            data["simulation_note"] = f"Source supposée compromise (hypothèse sur #{asset_id})"
 
         graph.nodes[asset_id]["hypothetically_compromised"] = True
 
@@ -44,10 +44,24 @@ def apply_hypothesis(graph: nx.DiGraph, hypothesis: dict) -> nx.DiGraph:
         asset_id = hypothesis["asset_id"]
         if asset_id not in graph.nodes:
             raise ValueError(f"Asset #{asset_id} introuvable dans le graphe")
+        port = hypothesis.get("port")
+        label = f"port {port}" if port else "service non précisé"
         graph.nodes[asset_id]["risk_score"] = min(graph.nodes[asset_id].get("risk_score", 0) + 20, 100)
-        # Un service supplémentaire exposé rend aussi l'asset plus facile à atteindre : renforce les arêtes entrantes
+        graph.nodes[asset_id]["simulated_service"] = port or True
+        # Un service supplémentaire rend l'actif atteignable par ses relations entrantes : saut plausible, simulé
         for _, _, data in graph.in_edges(asset_id, data=True):
             data["weight"] = round(min(data["weight"] + 10, 100.0), 1)
+            data["simulated"] = True
+            data["simulation_note"] = f"Service hypothétique exposé sur #{asset_id} ({label})"
+            transition = data.get("transition")
+            if transition is not None:
+                transition = {**transition, "plausible": True,
+                              "services": sorted(set(transition["services"]) | ({port} if port else set()))}
+                transition["preconditions"] = transition["preconditions"] + [{
+                    "condition": "Service hypothétique (simulation)", "status": "simulated",
+                    "evidence": f"Ajouté par l'hypothèse : {label}"}]
+                transition["uncertainties"] = transition["uncertainties"] + ["Service supposé par la simulation, non observé"]
+                data["transition"] = transition
 
     elif h_type == "connection_removed":
         source, target = hypothesis["source_asset_id"], hypothesis["destination_asset_id"]
@@ -84,6 +98,8 @@ def run_what_if(db: Session, hypothesis: dict) -> dict:
     ]
 
     return {
+        "simulated": True,
+        "note": "Résultat calculé sur une copie du modèle à partir d'une hypothèse : ni observé, ni déclaré.",
         "hypothesis": hypothesis,
         "paths_before_count": len(paths_before),
         "paths_after_count": len(paths_after),

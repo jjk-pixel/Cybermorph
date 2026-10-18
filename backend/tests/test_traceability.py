@@ -119,7 +119,7 @@ class HistoryTest(unittest.TestCase):
         latest = db.query(Snapshot).order_by(Snapshot.id.desc()).first()
         self.assertEqual(latest.state["relations"][0]["origin"], "suricata_flow")
         self.assertEqual({a["criticality"] for a in latest.state["assets"]}, {"medium", "high"})
-        listing = list_snapshots(db, limit=10)
+        listing = list_snapshots(db, limit=10, offset=0)
         self.assertEqual([s["has_state"] for s in listing], [True, False])
         self.assertIsNotNone(get_snapshot(latest.id, db)["state"])
 

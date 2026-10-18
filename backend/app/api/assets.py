@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, UTC
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.database import get_db
@@ -8,6 +8,8 @@ from app.models.asset import Asset
 from app.schemas.asset import AssetCreate, AssetDeclaration, AssetOut
 from app.risk.risk_engine import calculate_risk
 from app.risk.signals import collect_signals
+from app.risk.apply_risk import record_history
+from app.models.risk import RiskHistory
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
@@ -70,9 +72,27 @@ def declare_asset_attributes(asset_id: int, declaration: AssetDeclaration, db: S
 
     # Le score de risque dépend de la criticité : recalcul immédiat plutôt qu'au prochain cycle
     db.flush()
-    result = calculate_risk(asset, collect_signals(db).get(asset.id))
+    now = datetime.now(UTC)
+    result = calculate_risk(asset, collect_signals(db, now).get(asset.id), now)
     asset.risk_score = result["risk_score"]
     asset.risk_factors = json.dumps(result, ensure_ascii=False, default=str)
+    record_history(db, asset, result, now)
     db.commit()
     db.refresh(asset)
     return asset
+
+
+@router.get("/{asset_id}/risk-history")
+def get_risk_history(asset_id: int, db: Session = Depends(get_db), limit: int = Query(288, ge=1, le=5000)):
+    """Évolution du score : une entrée par changement de score, de niveau ou de confiance (au moins une par heure)."""
+    if not db.get(Asset, asset_id):
+        raise HTTPException(status_code=404, detail="Asset introuvable")
+    rows = (
+        db.query(RiskHistory).filter(RiskHistory.asset_id == asset_id)
+        .order_by(RiskHistory.computed_at.desc(), RiskHistory.id.desc()).limit(limit).all()
+    )
+    return [
+        {"computed_at": r.computed_at, "score": r.score, "level": r.level, "confidence": r.confidence,
+         "model_version": r.model_version, "breakdown": r.breakdown}
+        for r in reversed(rows)
+    ]

@@ -34,6 +34,9 @@ class Asset(Base):
     # Actif qui sonde le réseau (le capteur CYBERMORPH lui-même) : ses sondes ne sont pas du comportement normal
     is_scanner = Column(Boolean, nullable=True)
     scanner_reason = Column(String, nullable=True)
+    # Balayages Nmap terminés consécutifs sans réponse alors que l'IP était dans la portée : « hors ligne »
+    # seulement après OFFLINE_AFTER_MISSES ; avant, l'actif est « non observé » (status unknown), pas absent
+    missed_scans = Column(Integer, nullable=False, default=0, server_default="0")
     last_seen = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

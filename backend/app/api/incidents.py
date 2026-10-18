@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.incident import Incident
@@ -8,8 +8,8 @@ router = APIRouter(prefix="/api/incidents", tags=["incidents"])
 
 
 @router.get("/")
-def list_incidents(db: Session = Depends(get_db)):
-    incidents = db.query(Incident).order_by(Incident.last_seen.desc()).limit(50).all()
+def list_incidents(db: Session = Depends(get_db), limit: int = Query(50, ge=1, le=500), offset: int = Query(0, ge=0)):
+    incidents = db.query(Incident).order_by(Incident.last_seen.desc(), Incident.id.desc()).offset(offset).limit(limit).all()
     return [
         {
             "id": i.id, "status": i.status, "source_asset_id": i.source_asset_id,

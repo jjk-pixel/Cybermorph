@@ -128,3 +128,10 @@ export function BrandMark(p: IconProps) {
     </svg>
   );
 }
+
+/* Pouls : santé de la collecte */
+export const IconHealth = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M2 10h4l2-5 4 10 2-5h4" />
+  </svg>
+);

@@ -18,7 +18,8 @@ LEVEL_POINTS = {"low": 0, "medium": 5, "high": 15, "critical": 20}
 TARGET_LEVELS = ("high", "critical")
 
 TYPE_BASELINE = {
-    "router": ("critical", "Passerelle du segment : le trafic des autres actifs y transite"),
+    "router": ("critical", "Équipement réseau : le trafic des autres actifs y transite"),
+    "firewall": ("critical", "Pare-feu : contrôle les flux entre segments"),
     "server": ("high", "Serveur exposant des services"),
     "pc": ("medium", "Poste de travail"),
     "iot": ("medium", "Objet connecté"),
@@ -29,11 +30,20 @@ def level_index(level: str) -> int:
     return LEVELS.index(level) if level in LEVELS else 0
 
 
-def infer_criticality(asset_type: str, open_ports: list[int], services: list[str], type_confidence: float | None) -> dict:
-    level, reason = TYPE_BASELINE.get(asset_type, ("low", "Rôle non identifié"))
+def infer_criticality(
+    asset_type: str, open_ports: list[int], services: list[str], type_confidence: float | None, roles: list[dict] | None = None,
+) -> dict:
+    level, reason = TYPE_BASELINE.get(asset_type, ("low", "Type non identifié"))
     reasons = [reason]
-    # La criticité inférée du rôle ne peut pas être plus sûre que la classification qui la fonde
+    # La criticité inférée du type ne peut pas être plus sûre que la classification qui la fonde
     confidence = type_confidence if type_confidence is not None else 0.5
+
+    gateway = next((r for r in roles or [] if r.get("role") == "gateway"), None)
+    if gateway:
+        if level_index(level) < level_index("critical"):
+            level = "critical"
+        reasons.append("Passerelle par défaut du segment (table de routage)")
+        confidence = max(confidence, gateway.get("confidence", 0.9))
 
     db = database_ports(open_ports, services)
     if db:
@@ -57,7 +67,8 @@ def effective_criticality(asset) -> dict:
     type_confidence = classification.get("confidence") if isinstance(classification, dict) else None
     if getattr(asset, "asset_type_source", None) == "declared":
         type_confidence = 1.0
-    return infer_criticality(asset.asset_type, parse_ports(asset.open_ports), parse_list(asset.services), type_confidence)
+    roles = classification.get("roles") if isinstance(classification, dict) else None
+    return infer_criticality(asset.asset_type, parse_ports(asset.open_ports), parse_list(asset.services), type_confidence, roles)
 
 
 def is_target_level(level: str | None) -> bool:

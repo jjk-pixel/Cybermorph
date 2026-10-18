@@ -39,7 +39,8 @@ SOURCE_LABEL = {
 # Fiabilité d'une source pour le nom d'un actif : un nom annoncé par l'équipement vaut mieux qu'un nom déduit
 NAME_SOURCE_RANK = {"manual": 6, "dhcp": 5, "mdns": 4, "local": 4, "dns": 3, "heuristic": 1}
 
-ATTRIBUTE_LABEL = {"mac": "adresse MAC", "vendor": "constructeur", "os": "OS estimé", "hostname": "nom d'hôte"}
+ATTRIBUTE_LABEL = {"mac": "adresse MAC", "vendor": "constructeur", "os": "OS estimé", "hostname": "nom d'hôte",
+                   "port_service": "service", "ip": "adresse IP"}
 
 
 def utcnow() -> datetime:
@@ -131,6 +132,11 @@ def record_observation(
 
 # --------------------------------------------------------------------------- changements
 
+def record_change(db, asset, change_type, severity, explanation, now, attribute=None, old=None, new=None, source=None, evidence=None):
+    """Changement constaté hors du rapprochement de fin de cycle (ex. changement d'IP suivi par le collecteur Nmap)."""
+    return _change(db, [], asset, change_type, severity, explanation, now, attribute, old, new, source, evidence)
+
+
 def _change(db, changes, asset, change_type, severity, explanation, now, attribute=None, old=None, new=None, source=None, evidence=None):
     change = AssetChange(
         asset_id=asset.id if asset else None, ip=asset.ip_address if asset else None,
@@ -211,6 +217,29 @@ def reconcile_cycle(
                         f"Port {o.value} plus observé sur {asset.ip_address} depuis {minutes} min, alors que {label} a bien sondé l'actif.",
                         now, attribute="open_port", old=o.value, source=o.source, evidence={"observation_id": o.id})
 
+        # Service sur un port : produit ou version qui change entre deux scans (même source, même port)
+        by_port: dict[tuple[str, str], list[AssetObservation]] = {}
+        for o in obs:
+            if o.attribute == "port_service":
+                by_port.setdefault((o.source, o.value.split(" ", 1)[0]), []).append(o)
+        for (source, port), group in by_port.items():
+            fresh = [o for o in group if as_utc(o.first_seen) >= cycle_start]
+            previous = sorted((o for o in group if as_utc(o.first_seen) < cycle_start and o.retired_at is None),
+                              key=lambda o: as_utc(o.last_seen), reverse=True)
+            for new in fresh:
+                for old in previous:
+                    old.retired_at = now
+                if not previous:
+                    continue
+                old = previous[0]
+                old_name, new_name = (old.value.split(" ") + [""])[1], (new.value.split(" ") + [""])[1]
+                _change(db, changes, asset, "service_changed", "warning" if old_name != new_name else "notice",
+                        f"Service du port {port} sur {asset.ip_address} : « {old.value} » → « {new.value} » "
+                        f"({SOURCE_LABEL.get(source, source)})"
+                        + (". Autre service sur le même port : à vérifier." if old_name != new_name else " : version ou produit modifié."),
+                        now, attribute="port_service", old=old.value, new=new.value, source=source,
+                        evidence={"observation_ids": [old.id, new.id]})
+
         # Attributs à valeur unique : comparaison par source (une source qui change d'avis)
         for attribute in SINGLE_VALUED:
             by_source: dict[str, list[AssetObservation]] = {}
@@ -245,12 +274,14 @@ def reconcile_cycle(
                             old=old.value, new=new.value, source=source,
                             evidence={"observation_ids": [old.id, new.id]})
 
+        # « unknown » (non observé une fois) n'est pas un changement : seul le passage hors ligne confirmé l'est
         before = status_before.get(asset.id)
-        if before and before != asset.status and asset.status in ("up", "down"):
+        if before and before != asset.status:
             if asset.status == "down":
                 _change(db, changes, asset, "went_offline", "notice",
-                        f"{asset.ip_address} ne répond plus au scan Nmap.", now, attribute="status", old=before, new="down", source="nmap")
-            else:
+                        f"{asset.ip_address} ne répond plus à plusieurs balayages Nmap complets consécutifs : hors ligne.",
+                        now, attribute="status", old=before, new="down", source="nmap")
+            elif asset.status == "up" and before == "down":
                 _change(db, changes, asset, "back_online", "info",
                         f"{asset.ip_address} répond de nouveau au scan Nmap.", now, attribute="status", old=before, new="up", source="nmap")
 

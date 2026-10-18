@@ -7,6 +7,7 @@ from app.models.asset import Asset
 from app.models.network_connection import NetworkConnection
 from app.collectors.network_utils import get_local_ip_and_interface
 from app.inventory.observations import record_observation
+from app.topology.relations import refresh_quality
 
 
 def get_arp_neighbors(interface: str):
@@ -58,17 +59,21 @@ def sync_arp_connections():
                 .first()
             )
 
-            if existing:
-                existing.status = "active"
-                existing.last_seen = datetime.now(UTC)
-            else:
-                db.add(NetworkConnection(
+            if not existing:
+                existing = NetworkConnection(
                     source_asset_id=source.id,
                     destination_asset_id=dest.id,
                     protocol="arp",
                     connection_type="neighbor_detected",
                     status="active",
-                ))
+                    created_at=datetime.now(UTC),
+                )
+                db.add(existing)
+            existing.status = "active"
+            existing.last_seen = datetime.now(UTC)
+            existing.source = "arp"
+            existing.evidence = {"mac": n["mac"].upper(), "arp_state": n["state"]}
+            refresh_quality(existing)
 
             db.commit()
             print(f"[CYBERMORPH][ARP] Voisinage : {local_ip} → {n['ip']} ({n['mac']}, état={n['state']})")

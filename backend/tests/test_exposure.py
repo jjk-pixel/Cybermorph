@@ -18,7 +18,7 @@ from app.database import Base
 from app.models.alert import Alert
 from app.models.asset import Asset
 from app.models.network_connection import NetworkConnection
-from app.inventory.classification import classify_asset, classify_sensor_host
+from app.inventory.classification import classify_sensor_host
 from app.collectors.nmap_collector import guess_asset_type
 from app.exposure.criticality import effective_criticality, LEVEL_POINTS
 from app.exposure.exposure_engine import analyze_exposure, blast_radius, compute_choke_points
@@ -32,40 +32,19 @@ BACKEND = Path(__file__).resolve().parents[1]
 
 
 class ClassificationTest(unittest.TestCase):
-    def test_historical_decisions_are_preserved(self):
-        # Mêmes décisions que l'ancien guess_asset_type, premier critère prioritaire
-        self.assertEqual(guess_asset_type([53], "VMware", ["domain"]), "router")
-        self.assertEqual(guess_asset_type([22], "VMware", ["ssh"]), "server")
-        self.assertEqual(guess_asset_type([3306], "", ["mysql"]), "server")
-        self.assertEqual(guess_asset_type([445], "", []), "pc")
-        self.assertEqual(guess_asset_type([], "Cisco Systems", []), "router")
+    """Compatibilité de l'API historique ; les cas métier sont dans test_classification.py."""
+
+    def test_guess_asset_type_wrapper(self):
+        # Un service seul ne fixe plus le type (modèle 2) : seul un indice fort ou concordant le fait
+        self.assertEqual(guess_asset_type([53], "VMware", ["domain"]), "unknown")
+        self.assertEqual(guess_asset_type([22, 80, 5432], "", ["ssh", "http", "postgresql"]), "server")
+        self.assertEqual(guess_asset_type([], "Cisco Systems", []), "unknown")
         self.assertEqual(guess_asset_type([], "", []), "unknown")
 
-    def test_contradicting_evidence_lowers_confidence_and_is_published(self):
-        alone = classify_asset([3306], ["mysql"], "VMware", None)
-        contradicted = classify_asset([3306], ["mysql"], "VMware", "Microsoft Windows 11 21H2")
-        self.assertEqual(contradicted["type"], "server")
-        self.assertLess(contradicted["confidence"], alone["confidence"])
-        self.assertEqual(contradicted["alternatives"][0]["type"], "pc")
-        self.assertTrue(any(not r["supports"] for r in contradicted["reasons"]))
-
-    def test_corroborating_evidence_raises_confidence(self):
-        dns_only = classify_asset([53], ["domain"], "VMware", None)
-        with_os = classify_asset([53], ["domain"], "VMware", "VMware Player virtual NAT device")
-        self.assertGreater(with_os["confidence"], dns_only["confidence"])
-
-    def test_os_hint_alone_classifies_but_never_overrides_a_service(self):
-        self.assertEqual(classify_asset([], [], None, "Microsoft Windows 10")["type"], "pc")
-        self.assertEqual(classify_asset([22], ["ssh"], None, "Microsoft Windows 10")["type"], "server")
-
-    def test_unknown_has_low_confidence_and_a_reason(self):
-        result = classify_asset([], [], "VMware", None)
-        self.assertEqual(result["type"], "unknown")
-        self.assertLessEqual(result["confidence"], 0.3)
-        self.assertTrue(result["reasons"])
-
     def test_sensor_host(self):
-        self.assertEqual(classify_sensor_host()["type"], "server")
+        sensor = classify_sensor_host([22, 5432], ["sshd", "postgres"])
+        self.assertEqual(sensor["type"], "server")
+        self.assertEqual({r["role"] for r in sensor["roles"]}, {"ssh_server", "database_server"})
 
 
 class CriticalityTest(unittest.TestCase):

@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, DateTime, JSON
+from sqlalchemy import Column, Integer, DateTime, JSON, Index
 from sqlalchemy.sql import func
 from app.database import Base
 
 
 class Snapshot(Base):
     __tablename__ = "snapshots"
+    __table_args__ = (Index("ix_snapshots_captured_at", "captured_at"),)
 
     id = Column(Integer, primary_key=True, index=True)
     captured_at = Column(DateTime(timezone=True), server_default=func.now())

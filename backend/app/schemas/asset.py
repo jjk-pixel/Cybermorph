@@ -39,7 +39,7 @@ class AssetOut(AssetBase):
 
 
 CriticalityLevel = Literal["low", "medium", "high", "critical"]
-AssetTypeValue = Literal["router", "server", "pc", "iot", "unknown"]
+AssetTypeValue = Literal["router", "firewall", "server", "pc", "iot", "unknown"]
 
 
 class AssetDeclaration(BaseModel):

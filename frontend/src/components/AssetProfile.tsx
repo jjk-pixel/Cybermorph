@@ -7,7 +7,12 @@ import { ui, useUi } from "../state/ui";
 import { CriticalityTag } from "./CriticalityTag";
 import { ErrorNote, Score } from "./ui";
 
-const TYPES = ["router", "server", "pc", "iot", "unknown"];
+const TYPES = ["router", "firewall", "server", "pc", "iot", "unknown"];
+
+const DECISION_TEXT: Record<string, string> = {
+  insufficient: "indices insuffisants pour trancher",
+  contradictory: "indices contradictoires",
+};
 
 /* Rôle, criticité et preuves de classification ; déclarations de l'opérateur. */
 export function AssetProfile({ asset, label }: { asset: LiveAsset; label: (id: number) => string }) {
@@ -24,8 +29,22 @@ export function AssetProfile({ asset, label }: { asset: LiveAsset; label: (id: n
           <span className="muted">
             {typeDeclared
               ? " · déclaré"
-              : classification ? ` · inféré, confiance ${formatConfidence(classification.confidence)}` : " · inféré"}
+              : classification?.decision && classification.decision !== "assigned"
+                ? ` · ${DECISION_TEXT[classification.decision]}`
+                : classification ? ` · inféré, confiance ${formatConfidence(classification.confidence)}` : " · inféré"}
           </span>
+        </dd>
+        <dt>Rôles</dt>
+        <dd>
+          {classification?.roles && classification.roles.length > 0 ? (
+            <span className="role-list">
+              {classification.roles.map((r) => (
+                <span key={r.role} className="role-chip" title={`${r.reasons.join(" ; ")} (${r.source}, confiance ${formatConfidence(r.confidence)})`}>
+                  {r.label}
+                </span>
+              ))}
+            </span>
+          ) : <span className="muted">aucun rôle déduit des services</span>}
         </dd>
         <dt>Criticité</dt>
         <dd><CriticalityTag criticality={asset.criticality} /> <span className="muted">{asset.criticality.reasons.join(" ; ")}</span></dd>
@@ -41,6 +60,23 @@ export function AssetProfile({ asset, label }: { asset: LiveAsset; label: (id: n
             </li>
           ))}
         </ul>
+      )}
+      {classification?.services && classification.services.some((s) => s.product || s.name) && (
+        <>
+          <h4 className="subsection-title">Services identifiés</h4>
+          <ul className="service-list">
+            {classification.services.map((s) => (
+              <li key={`${s.proto ?? "tcp"}${s.port}`}>
+                <span className="mono">{s.port}/{s.proto ?? "tcp"}</span>
+                <span>{s.name ?? "—"}</span>
+                <span className="muted">{[s.product, s.version].filter(Boolean).join(" ") || "version inconnue"}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {classification?.missing && classification.missing.length > 0 && (
+        <p className="muted small">Informations manquantes : {classification.missing.join(" ; ")}.</p>
       )}
       {typeDeclared && classification && classification.type !== asset.asset_type && (
         <p className="muted small">Avis du classifieur : {ASSET_TYPE_LABEL[classification.type] ?? classification.type}.</p>

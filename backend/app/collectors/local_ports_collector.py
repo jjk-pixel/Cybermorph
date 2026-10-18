@@ -59,7 +59,7 @@ def sync_local_asset():
         asset.open_ports = ",".join(map(str, unique_ports))
         asset.services = ",".join(services)
         # L'hôte local héberge toujours plusieurs services : "server", sauf type déclaré par l'opérateur
-        asset.classification = classify_sensor_host()
+        asset.classification = classify_sensor_host(unique_ports, services)
         if asset.asset_type_source != "declared":
             asset.asset_type = "server"
         asset.status = "up"

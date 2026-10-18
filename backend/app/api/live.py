@@ -22,6 +22,7 @@ from app.incidents.incident_engine import ACTIVE_STATUSES
 from app.exposure.criticality import effective_criticality
 from app.exposure.exposure_engine import compute_choke_points
 from app.security import websocket_authorized
+from app.monitoring.health import asset_freshness, collection_summary
 
 router = APIRouter(tags=["live"])
 logger = logging.getLogger("cybermorph.live")
@@ -148,6 +149,8 @@ def _provenance(edge: dict) -> dict:
         },
         "observed_sources": sorted({d.get("source") or "historique" for d in observed}),
         "last_seen": max(seen) if seen else None,
+        "confidence": edge.get("confidence"),
+        "relation_classes": edge.get("relation_classes", []),
     }
 
 
@@ -176,7 +179,8 @@ def get_live_state(db: Session) -> dict:
     paths = find_paths_on_graph(graph, min_score=LIVE_PATH_MIN_SCORE)
     active_incidents = get_active_incidents(db)
 
-    day_ago = datetime.now(UTC) - timedelta(hours=24)
+    now = datetime.now(UTC)
+    day_ago = now - timedelta(hours=24)
     alerts_total = db.query(Alert).count()
     alerts_24h = db.query(Alert).filter(Alert.last_seen >= day_ago).count()
     last_snapshot = db.query(Snapshot.captured_at).order_by(Snapshot.captured_at.desc()).first()
@@ -192,6 +196,7 @@ def get_live_state(db: Session) -> dict:
         "type": "state_update",
         "generated_at": _iso(datetime.now(UTC)),
         "last_scan_at": _iso(last_snapshot[0]) if last_snapshot else None,
+        "collection": collection_summary(db),
         "assets": [
             {
                 "id": a.id, "ip": a.ip_address, "name": a.name, "hostname": a.hostname,
@@ -206,6 +211,8 @@ def get_live_state(db: Session) -> dict:
                 "authorization": a.authorization,
                 "is_scanner": bool(a.is_scanner),
                 "open_deviations": deviations_by_asset.get(a.id, 0),
+                # fresh (< 15 min), stale (< 1 h), obsolete : âge de la dernière observation
+                "freshness": asset_freshness(a, now)["freshness"],
             }
             for a in assets
         ],
@@ -231,7 +238,9 @@ def get_live_state(db: Session) -> dict:
         "attack_paths": [
             {"source": p["source"], "target": p["target"], "nodes": p["nodes"], "hops": p["hops"],
              "score": p["score"], "risk": p["risk"], "evidence_level": p["evidence_level"],
-             "connection_types": p["connection_types"], "alert_evidence": p["alert_evidence"]}
+             "connection_types": p["connection_types"], "alert_evidence": p["alert_evidence"],
+             "nature": p.get("nature"), "confidence": p.get("confidence"), "uncertainties": p.get("uncertainties", []),
+             "exploitation_demonstrated": p.get("exploitation_demonstrated"), "steps": p.get("steps", [])}
             for p in paths
         ],
         # Points de blocage des chemins ci-dessus (le détail chiffré est servi par /api/exposure)

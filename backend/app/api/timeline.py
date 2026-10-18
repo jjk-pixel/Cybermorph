@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, defer
 from app.database import get_db
 from app.models.snapshot import Snapshot
@@ -7,11 +7,12 @@ router = APIRouter(prefix="/api/timeline", tags=["timeline"])
 
 
 @router.get("/")
-def list_snapshots(db: Session = Depends(get_db), limit: int = 50):
+def list_snapshots(db: Session = Depends(get_db), limit: int = Query(50, ge=1, le=2016), offset: int = Query(0, ge=0)):
     rows = (
         db.query(Snapshot, Snapshot.state.isnot(None).label("has_state"))
         .options(defer(Snapshot.state))
         .order_by(Snapshot.captured_at.desc())
+        .offset(offset)
         .limit(limit)
         .all()
     )

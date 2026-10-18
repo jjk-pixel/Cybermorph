@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, UTC
 import networkx as nx
 from sqlalchemy.orm import Session
 
-from app.attack_graph.graph_engine import build_graph, find_paths_on_graph, is_target_node
+from app.attack_graph.graph_engine import build_graph, find_paths_on_graph, is_target_node, search_paths
 from app.exposure.criticality import LEVEL_LABEL, effective_criticality
 from app.incidents.incident_engine import ACTIVE_STATUSES
 from app.inventory.classification import parse_ports
@@ -39,9 +39,10 @@ ENTRY_LABELS = {
 
 ASSUMPTIONS = [
     "Les chemins suivent les relations connues (observées, voisinage ARP, déclarées) : une relation non observée n'existe pas pour le modèle.",
+    "Un saut n'est retenu que si un service de la cible est atteignable par la relation ; une simple connexion ne suffit pas.",
     "Le score d'un chemin mesure sa plausibilité relative sur ce modèle, pas une probabilité d'attaque.",
     "Les recommandations sont des estimations contrefactuelles : retirer une liaison ou un actif d'une copie du graphe et mesurer les chemins qui disparaissent.",
-    "Aucune base de vulnérabilités n'est branchée : l'exposition repose sur les services ouverts, pas sur des CVE.",
+    "Seules les vulnérabilités confirmées par l'opérateur valent moyen d'exploitation ; sinon l'exploitation reste non démontrée.",
 ]
 
 
@@ -192,7 +193,7 @@ def analyze_exposure(db: Session, min_score: float = DEFAULT_MIN_SCORE, max_leng
     label = lambda asset_id: assets[asset_id].ip_address if asset_id in assets else f"#{asset_id}"  # noqa: E731
 
     graph = build_graph(db)
-    paths = find_paths_on_graph(graph, min_score=min_score, max_length=max_length)
+    paths, limits = search_paths(graph, min_score=min_score, max_length=max_length)
     target_ids = {n for n, data in graph.nodes(data=True) if is_target_node(data)}
     entries = qualify_entry_points(db, assets)
 
@@ -252,6 +253,7 @@ def analyze_exposure(db: Session, min_score: float = DEFAULT_MIN_SCORE, max_leng
         "choke_points": choke_points,
         "recommendations": recommendations,
         "paths": paths[:100],
+        "limits": limits,
         "assumptions": ASSUMPTIONS,
     }
 

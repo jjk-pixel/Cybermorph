@@ -14,6 +14,7 @@ import { OverviewView } from "./views/OverviewView";
 import { PathsView } from "./views/PathsView";
 import { SimulationsView } from "./views/SimulationsView";
 import { TimelineView } from "./views/TimelineView";
+import { HealthView } from "./views/HealthView";
 
 // La 3D (three.js, r3f, postprocessing) est chargée à part pour que l'interface s'affiche immédiatement
 const TwinScene = lazy(() => import("./scene/TwinScene"));
@@ -29,6 +30,7 @@ const VIEWS: Record<ViewId, () => React.JSX.Element | null> = {
   mitre: MitreView,
   timeline: TimelineView,
   simulations: SimulationsView,
+  health: HealthView,
 };
 
 /* Vues qui occupent toute la largeur : la scène reste visible mais passe en retrait */

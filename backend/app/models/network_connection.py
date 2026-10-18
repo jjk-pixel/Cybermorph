@@ -1,10 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, JSON, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 class NetworkConnection(Base):
     __tablename__ = "network_connections"
+    __table_args__ = (
+        Index("ix_network_connections_pair", "source_asset_id", "destination_asset_id"),
+        Index("ix_network_connections_status", "status"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     source_asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
@@ -15,6 +19,11 @@ class NetworkConnection(Base):
     status = Column(String, default="active")         # active, inactive
     # Capteur à l'origine de la relation : suricata_flow, arp, zeek, operator ; NULL = antérieur à ce suivi
     source = Column(String, nullable=True)
+    # Lot C — qualité (app.topology.relations) : confiance, fin de validité, preuves, motif d'une déclaration
+    confidence = Column(Float, nullable=True)
+    valid_until = Column(DateTime(timezone=True), nullable=True)
+    evidence = Column(JSON, nullable=True)
+    note = Column(String, nullable=True)
     last_seen = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
