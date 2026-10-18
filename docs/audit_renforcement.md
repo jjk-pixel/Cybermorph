@@ -160,4 +160,108 @@ Hors périmètre (demandé nulle part, ou impossible avec les capteurs disponibl
 
 ## Résultats
 
-Complété après chaque lot.
+Livré le 18/10/2026 sur `feature/renforcement-moteur`, en dix commits, un par lot.
+
+**Tests en fin de chantier :**
+
+- backend : 169 tests (14 fichiers), tous passent ; ils incluent l'aller-retour des migrations sur SQLite ;
+- schéma PostgreSQL et modèles identiques (`compare_metadata` vide après 0011) ;
+- frontend : 23 tests, `tsc -b`, `oxlint` et `vite build` passent.
+
+### Problèmes réellement trouvés, puis corrigés
+
+| Problème constaté (données réelles) | Correction | Lot |
+|---|---|---|
+| .1 (Windows 11 + MySQL seul) classé `server` | type `pc`, rôle « base de données », criticité élevée par le rôle | A |
+| Un port 53 suffisait pour classer un routeur | DNS = rôle ; passerelle prouvée par la table de routage | A |
+| La NAT VMware classée « objet connecté » à cause de la classe d'OS Nmap « specialized » | classes génériques ignorées ; .2 = routeur, confiance 0,95 | A/B |
+| Un balayage manqué suffisait à passer `down` | « non observé », puis hors ligne après deux balayages complets | B |
+| Aucune trace des exécutions ; `/api/health` toujours « healthy » | `collector_runs`, `/api/system/health` | B, H |
+| Champ de journal réservé (`args`) : l'étape Nmap échouait dès qu'on journalisait | renommé `nmap_args`, test au niveau INFO | B |
+| Le risque montait quand une donnée manquait : .254 et .133 étaient à 10 et 17 points pour un OS inconnu | donnée manquante = confiance réduite ; .254 et .133 à 0 | D |
+| Le cycle restait « partial » dès qu'une étape était sautée | « skipped » ne dégrade plus le cycle | H |
+| La simulation présentait les hypothèses comme des relations « déclarées » | arêtes marquées « simulées », preuves inchangées | F |
+| Les chemins étaient « observés » à cause d'alertes de protocole (`ICMPv4 unknown code`) | observé = alerte offensive P1-P2 à chaque saut | F |
+| `POST /api/connections` pouvait fabriquer une relation « observée » | création limitée aux déclarations, motif obligatoire | C |
+| Écritures possibles depuis le réseau sans jeton | sans jeton, les écritures sont réservées à la boucle locale | I |
+| Un message d'exception pouvait recopier des identifiants dans les journaux | masquage des identifiants d'URL et des jetons | I |
+
+### Nouvelles fonctionnalités opérationnelles
+
+Toutes sont vérifiées sur les données réelles, sauf mention contraire.
+
+- **Classification multi-indices.**
+  - Type, rôles et services séparés ; scores par type, décision, informations manquantes.
+  - Résultat réel : .1 poste, .2 routeur et passerelle, .135 serveur (hôte capteur), .254 et .133 inconnus (indices insuffisants).
+- **Découverte maîtrisée.**
+  - Portée validée, options intrusives refusées, délais d'attente, verrou, arrêt propre.
+  - Journal des exécutions ; versions et CPE des services ; changement de service par port ; continuité d'identité quand l'IP change.
+- **Relations.** Classe, confiance, validité, preuves ; graphe reconstruit uniquement depuis la base, relations périmées exclues.
+- **Risque (modèle 2).**
+  - Contributeurs structurés, données manquantes, confiance, date de calcul, historique (`risk_history`).
+  - Le risque reste « potentiel » ; les indices de compromission sont listés à part.
+- **Vulnérabilités.**
+  - Inventaire logiciel (CPE), sources interchangeables, statuts, décision de l'opérateur.
+  - *Non alimenté sur le lab : aucune source configurée.* Le seul logiciel avec CPE est `cpe:/a:mysql:mysql`, sans version.
+- **Graphe d'attaque.**
+  - Préconditions et incertitudes par saut ; sauts sans service atteignable écartés (réel : .135 → .254).
+  - Nature observée ou hypothétique ; limites de calcul signalées.
+  - Sur le lab : un seul chemin observé (.1 → .135, « ET SCAN … MySQL », ×5 122).
+- **Corrélation.**
+  - Balayage d'une cible, nouveau service puis activité, changement de profil, plusieurs événements sur une adresse.
+  - Réel : port 8010 apparu sur .135 puis quatre événements dans l'heure, présentés comme une corrélation temporelle.
+- **ATT&CK.**
+  - Preuves avec statut : sur le lab, deux preuves inférées (T1046) et trois non confirmées (alertes isolées).
+  - Les balayages mesurés dans les flux sont rattachés (T1046, T1018) dès qu'un écart de ce type apparaît.
+- **Supervision.** Cycles, étapes, timer, capteurs, fraîcheur par actif ; réel : état « ok », .133 obsolète, CVE non évaluées.
+- **API.** Validation stricte, pagination, erreurs JSON homogènes, écritures protégées, journaux JSON, index.
+
+### Schéma et migrations
+
+Toutes les migrations sont réversibles et précédées d'un `pg_dump` dans `backups/`.
+
+| Migration | Contenu |
+|---|---|
+| 0006_collector_runs | table `collector_runs`, colonne `assets.missed_scans` |
+| 0007_relations | `network_connections` : `confidence`, `valid_until`, `evidence`, `note` (rétro-remplies) |
+| 0008_risk_history | table `risk_history` |
+| 0009_vulnerabilities | table `vulnerability_findings` |
+| 0010_correlation | tables `correlations`, `technique_evidence` (reprise des 5 rapprochements existants) |
+| 0011_indexes | 9 index (alertes, relations, snapshots, incidents, écarts) |
+
+Pendant le chantier, un cycle (03:40:07) a démarré une seconde avant la migration 0006. Ses étapes ont échoué proprement, sans écriture, et le cycle suivant a réussi. Ensuite, chaque migration a été appliquée avant la modification des modèles.
+
+### Dépendances ajoutées
+
+Aucune.
+
+- Les tests HTTP utilisent un client ASGI minimal, sans `httpx`.
+- La comparaison de versions est écrite à la main, sans `packaging`.
+- L'API NVD est appelée avec `urllib` de la bibliothèque standard.
+
+### Commandes
+
+```bash
+cd backend && ../venv/bin/alembic upgrade head
+cd backend && ../venv/bin/python -m unittest discover -s tests -t .
+cd frontend && npm test && npm run lint && npm run build
+curl -s http://127.0.0.1:8000/api/system/health   # santé de la collecte
+```
+
+### Encore incomplet
+
+- Vulnérabilités sans source sur le lab.
+  - Il faut déposer un flux NVD (`CYBERMORPH_VULN_FEED`) ou activer l'API (`CYBERMORPH_NVD_ENABLED=1`).
+  - Les versions annoncées par les bannières restent « probables » ou « incertaines » tant que l'opérateur ne les a pas vérifiées.
+- Présence : seul Nmap la détermine. ARP et flux passifs ne confirment pas encore la présence d'un actif qui ne répond pas au ping.
+- Corrélation : quatre règles explicites ; aucune règle multi-actifs (propagation entre plusieurs hôtes) hors des incidents existants.
+- Rétention : `snapshots` (≈ 2 300 lignes) et `risk_history` n'ont pas de politique de purge.
+- Rendu visuel : aucun navigateur sans interface n'est disponible sur la machine.
+  - Le frontend est vérifié par les types, le lint, les tests et le build, et ses 19 points d'API ont été appelés à travers le proxy Vite.
+  - L'affichage n'a pas été contrôlé à l'œil.
+
+### Limites des données disponibles
+
+- **Nmap.** TCP seulement : les services UDP (DHCP, SNMP…) ne sont pas vus. L'empreinte d'OS est une estimation, et la version d'un service est celle qu'il annonce.
+- **Suricata.** Il ne voit que le trafic qui passe par l'interface du capteur, essentiellement celui de .135 : les communications entre deux autres hôtes restent invisibles.
+- **Taille du lab.** Cinq actifs, dont un hors ligne depuis le 12/10 : la plupart des règles (corrélation, ATT&CK observé, continuité d'identité) n'ont pas encore rencontré de cas réel. Elles sont couvertes par des tests sur des données construites.
