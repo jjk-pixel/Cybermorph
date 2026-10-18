@@ -41,8 +41,8 @@ def seed_lab(db):
     """Lab minimal : poste attaquant (1) → serveur (2) → routeur (3)."""
     db.add_all([
         Asset(id=1, name="attaquant", ip_address="10.0.0.5", asset_type="pc", status="up", risk_score=10),
-        Asset(id=2, name="srv", ip_address="10.0.0.10", asset_type="server", status="up", risk_score=40, services="ssh,mysql"),
-        Asset(id=3, name="gw", ip_address="10.0.0.1", asset_type="router", status="up", risk_score=20, services="domain"),
+        Asset(id=2, name="srv", ip_address="10.0.0.10", asset_type="server", status="up", risk_score=40, services="ssh,mysql", open_ports="22,3306"),
+        Asset(id=3, name="gw", ip_address="10.0.0.1", asset_type="router", status="up", risk_score=20, services="domain", open_ports="53"),
     ])
     db.add_all([
         NetworkConnection(source_asset_id=1, destination_asset_id=2, protocol="tcp", port=22, connection_type="detected", status="active"),
@@ -251,6 +251,19 @@ class SuricataOffsetTest(unittest.TestCase):
     def test_parse_fields(self):
         (record,) = suricata.parse_fast_log_lines([self.LINE])
         self.assertEqual((record["src_ip"], record["dst_ip"], record["priority"]), ("10.0.0.5", "10.0.0.10", "2"))
+
+
+class SimulationIntegrityTest(unittest.TestCase):
+    def test_compromised_hypothesis_never_relabels_evidence(self):
+        db = make_session()
+        seed_lab(db)
+        result = run_what_if(db, {"type": "asset_compromised", "asset_id": 1})
+        self.assertTrue(result["simulated"])
+        for p in result["paths_after"]:
+            self.assertNotIn("declared", p["connection_types"])
+            if p["source"] == 1:
+                self.assertTrue(p["simulated"])
+        db.close()
 
 
 if __name__ == "__main__":
