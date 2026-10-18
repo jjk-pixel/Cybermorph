@@ -164,7 +164,7 @@ Livré le 18/10/2026 sur `feature/renforcement-moteur`, en dix commits, un par l
 
 **Tests en fin de chantier :**
 
-- backend : 169 tests (14 fichiers), tous passent ; ils incluent l'aller-retour des migrations sur SQLite ;
+- backend : 170 tests (14 fichiers), tous passent ; ils incluent l'aller-retour des migrations sur SQLite ;
 - schéma PostgreSQL et modèles identiques (`compare_metadata` vide après 0011) ;
 - frontend : 23 tests, `tsc -b`, `oxlint` et `vite build` passent.
 
@@ -256,9 +256,11 @@ curl -s http://127.0.0.1:8000/api/system/health   # santé de la collecte
 - Présence : seul Nmap la détermine. ARP et flux passifs ne confirment pas encore la présence d'un actif qui ne répond pas au ping.
 - Corrélation : quatre règles explicites ; aucune règle multi-actifs (propagation entre plusieurs hôtes) hors des incidents existants.
 - Rétention : `snapshots` (≈ 2 300 lignes) et `risk_history` n'ont pas de politique de purge.
-- Rendu visuel : aucun navigateur sans interface n'est disponible sur la machine.
-  - Le frontend est vérifié par les types, le lint, les tests et le build, et ses 19 points d'API ont été appelés à travers le proxy Vite.
-  - L'affichage n'a pas été contrôlé à l'œil.
+- Rendu visuel : vérifié dans Chromium sans interface (Playwright, bibliothèques extraites localement, sans
+  modification du système) sur les 11 vues, l'inspecteur et le détail d'un chemin ; aucune erreur JavaScript.
+  Deux défauts trouvés et corrigés : étiquettes 3D au-dessus des panneaux (contexte d'empilement de la scène) et
+  justification dupliquée des signaux. Les corrélations créées avant le regroupement par cycle (doublons du 18/10
+  matin) restent dans l'historique ; rien n'est supprimé.
 
 ### Limites des données disponibles
 

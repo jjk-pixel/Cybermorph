@@ -111,6 +111,17 @@ class CorrelationRulesTest(CorrelationTestCase):
         self.assertIn("ne démontre pas une relation de cause à effet", c.reasoning)
         self.assertEqual([e["type"] for e in c.events], ["change", "alert"])
 
+    def test_changes_of_the_same_cycle_form_one_correlation(self):
+        for i, port in enumerate(("8000", "5173"), start=1):
+            self.db.add(AssetChange(id=i, asset_id=2, ip="10.0.0.10", change_type="port_opened", new_value=port, severity="notice",
+                                    explanation=f"Port {port} ouvert", detected_at=NOW - timedelta(minutes=30)))
+        self.db.add(self.alert(20, "ET WEB_SERVER probe", priority=2, at=NOW - timedelta(minutes=10)))
+        self.db.commit()
+        correlate(self.db, NOW)
+        c = self.db.query(Correlation).filter_by(kind="new_service_activity").one()
+        self.assertEqual([e["type"] for e in c.events], ["change", "change", "alert"])
+        self.assertIn("Les ports 5173, 8000 sont apparus", c.reasoning)
+
     def test_activity_before_the_change_is_not_correlated(self):
         self.db.add(AssetChange(id=1, asset_id=2, ip="10.0.0.10", change_type="port_opened", new_value="8080", severity="notice",
                                 explanation="Port 8080 ouvert", detected_at=NOW))

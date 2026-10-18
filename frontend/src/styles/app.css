@@ -207,6 +207,9 @@ ol {
 .scene-layer {
   position: absolute;
   inset: 0;
+  /* Contexte d'empilement propre : les étiquettes 3D (z-index 0-20) restent sous les panneaux */
+  isolation: isolate;
+  z-index: 1;
   transition: opacity 300ms, filter 300ms;
 }
 

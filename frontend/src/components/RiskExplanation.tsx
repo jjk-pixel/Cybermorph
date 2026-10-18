@@ -42,7 +42,7 @@ export function RiskExplanation({ asset }: { asset: LiveAsset }) {
                   <li key={`${i.label}-${i.evidence.join(",")}`}>
                     <span className="breakdown-item-label">{i.label}</span>
                     <span className="mono num muted">{i.raw}</span>
-                    <span className="breakdown-why">{i.justification}</span>
+                    {i.justification !== i.label && <span className="breakdown-why">{i.justification}</span>}
                   </li>
                 ))}
                 {c.note && <li className="breakdown-note">{c.note}</li>}

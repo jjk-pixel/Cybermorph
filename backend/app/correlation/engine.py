@@ -118,18 +118,26 @@ def correlate(db: Session, now: datetime | None = None) -> dict:
                    [_deviation_event(d)] + [_alert_event(a) for a in related], reasoning, "same_target",
                    0.8 + (0.1 if related else 0.0))
 
-    # 2. Nouveau service puis activité vers cet actif
-    for c in (c for c in changes if c.change_type in ("port_opened", "service_changed") and c.asset_id in assets):
-        ip = assets[c.asset_id].ip_address
-        port = (c.new_value or "").split("/")[0].split(" ")[0]
-        after = lambda t: t is not None and _utc(c.detected_at) <= _utc(t) <= _utc(c.detected_at) + CORRELATION_WINDOW  # noqa: E731
+    # 2. Nouveau service puis activité vers cet actif. Les changements d'un même actif constatés au même cycle
+    #    (même date de détection) forment un seul ensemble : sinon chaque port ouvert répéterait la même suite.
+    service_changes: dict[tuple[int, datetime], list[AssetChange]] = {}
+    for c in changes:
+        if c.change_type in ("port_opened", "service_changed") and c.asset_id in assets:
+            service_changes.setdefault((c.asset_id, _utc(c.detected_at)), []).append(c)
+    for (asset_id, detected), group in service_changes.items():
+        ip = assets[asset_id].ip_address
+        ports = sorted({(c.new_value or "").split("/")[0].split(" ")[0] for c in group})
+        after = lambda t: t is not None and detected <= _utc(t) <= detected + CORRELATION_WINDOW  # noqa: E731
         follow = [_deviation_event(d) for d in deviations if d.dst_ip == ip and after(d.first_seen)]
         follow += [_alert_event(a) for a in alerts if a.destination_ip == ip and after(a.last_seen)]
         if not follow:
             continue
-        reasoning = (f"Le port {port} est apparu (ou a changé de service) sur {ip} à {_utc(c.detected_at):%H:%M} UTC, "
-                     f"puis {len(follow)} événement(s) ont visé cet actif dans l'heure. {CAUSALITY_NOTE}")
-        store.save("new_service_activity", f"change:{c.id}", c.asset_id, ip, [_change_event(c)] + follow, reasoning,
+        label = f"Le port {ports[0]} est apparu (ou a changé de service)" if len(ports) == 1 else \
+            f"Les ports {', '.join(ports)} sont apparus (ou ont changé de service)"
+        reasoning = (f"{label} sur {ip} à {detected:%H:%M} UTC, puis {len(follow)} événement(s) ont visé cet actif "
+                     f"dans l'heure. {CAUSALITY_NOTE}")
+        store.save("new_service_activity", f"changes:{asset_id}:{detected.isoformat()}", asset_id, ip,
+                   [_change_event(c) for c in sorted(group, key=lambda c: c.id)] + follow, reasoning,
                    "temporal", 0.5 + 0.1 * min(len(follow), 3))
 
     # 3. Changement inhabituel du profil d'un actif
