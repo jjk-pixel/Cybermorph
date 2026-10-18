@@ -34,3 +34,16 @@ def get_local_subnet():
 
     raise RuntimeError(f"Impossible de déterminer le sous-réseau local pour l'interface {interface}.")
 
+
+
+def get_default_gateway() -> str | None:
+    """IP de la passerelle par défaut (`ip route`), ou None : seul fait fiable qui désigne la passerelle du segment."""
+    try:
+        result = subprocess.run(["ip", "route"], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for line in result.stdout.split("\n"):
+        match = re.match(r"^default\s+via\s+([\d.]+)", line)
+        if match:
+            return match.group(1)
+    return None

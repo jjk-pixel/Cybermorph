@@ -144,7 +144,7 @@ def _transition_weight(dest: Asset | None, conn: NetworkConnection) -> float:
 
     asset_risk = min((dest.risk_score or 0.0) / 100 * 20, 20)
 
-    privilege_map = {"router": 20, "server": 15, "pc": 8, "unknown": 3}
+    privilege_map = {"router": 20, "firewall": 20, "server": 15, "pc": 8, "iot": 5, "unknown": 3}
     privilege = privilege_map.get(dest.asset_type, 3)
 
     evidence = EVIDENCE_WEIGHTS.get(conn.connection_type, 5)
