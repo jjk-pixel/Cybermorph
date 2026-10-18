@@ -16,6 +16,7 @@ from contextlib import contextmanager
 from datetime import datetime, UTC
 
 from app.database import SessionLocal
+from app.logging_config import redact
 from app.models.collector import CollectorRun
 
 LOCK_PATH = os.getenv("CYBERMORPH_LOCK_PATH", "/opt/cybermorph/backend/.cybermorph-cycle.lock")
@@ -71,7 +72,7 @@ def sanitize_error(error: BaseException | str) -> str:
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         text = text.replace(database_url, "<DATABASE_URL>")
-    return text[:ERROR_MAX_LENGTH]
+    return redact(text)[:ERROR_MAX_LENGTH]
 
 
 def record_run(collector: str, status: str, started_at: datetime, cycle_id: str | None = None,

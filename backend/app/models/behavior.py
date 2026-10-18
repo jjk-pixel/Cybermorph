@@ -38,7 +38,7 @@ class Communication(Base):
 class Deviation(Base):
     """Écart à la référence comportementale, expliqué et rattaché à ses preuves (activité, flux, alertes)."""
     __tablename__ = "deviations"
-    __table_args__ = (Index("ix_deviations_status", "status", "last_seen"),)
+    __table_args__ = (Index("ix_deviations_status", "status", "last_seen"), Index("ix_deviations_kind", "kind", "src_ip", "status"))
 
     id = Column(Integer, primary_key=True)
     kind = Column(String, nullable=False)             # new_communication, port_scan, host_sweep

@@ -5,7 +5,9 @@ Contrôle d'accès minimal de l'API CYBERMORPH.
   doit présenter ce jeton (en-tête `Authorization: Bearer <jeton>`, ou `?token=` pour
   les WebSockets dont les navigateurs ne permettent pas de fixer les en-têtes).
 - Sans jeton configuré, l'API reste en mode lab : elle doit alors être lancée sur
-  127.0.0.1 uniquement (voir README), jamais exposée sur le réseau.
+  127.0.0.1 uniquement (voir README), jamais exposée sur le réseau. Même dans ce mode, les opérations
+  sensibles (écritures : déclarations, relations, décisions, simulations, acquittements) ne sont acceptées que
+  depuis la boucle locale — le proxy Vite, qui tourne sur la même machine, en fait partie.
 """
 import hmac
 import os
@@ -27,6 +29,8 @@ CORS_ORIGINS = [
 ]
 
 PUBLIC_PATHS = {"/", "/api/health"}
+WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
 def _token_matches(candidate: str | None) -> bool:
@@ -39,11 +43,23 @@ def _bearer(value: str | None) -> str | None:
     return None
 
 
+def _is_loopback(request: Request) -> bool:
+    # L'adresse de la connexion TCP, jamais un en-tête X-Forwarded-For (falsifiable)
+    return bool(request.client) and request.client.host in LOOPBACK_HOSTS
+
+
 class TokenAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if API_TOKEN and request.url.path.startswith("/api") and request.url.path not in PUBLIC_PATHS:
-            if request.method != "OPTIONS" and not _token_matches(_bearer(request.headers.get("authorization"))):
-                return JSONResponse({"detail": "Authentification requise"}, status_code=401)
+        path = request.url.path
+        if path.startswith("/api") and path not in PUBLIC_PATHS and request.method != "OPTIONS":
+            if API_TOKEN:
+                if not _token_matches(_bearer(request.headers.get("authorization"))):
+                    return JSONResponse({"detail": "Authentification requise"}, status_code=401)
+            elif request.method in WRITE_METHODS and not _is_loopback(request):
+                return JSONResponse(
+                    {"detail": "Opération d'écriture refusée : sans CYBERMORPH_API_TOKEN, elle n'est acceptée que depuis la machine locale"},
+                    status_code=403,
+                )
         return await call_next(request)
 
 

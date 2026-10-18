@@ -27,7 +27,7 @@ from app.incidents.incident_engine import create_incident_from_alert, mark_dorma
 from app.incidents.attack_progression import create_potential_steps, advance_incident
 from app.api.live import get_live_state, _iso
 from app.api import simulations as simulations_api
-from app.schemas.simulation import SimulationCreate
+from app.schemas.simulation import AssetCompromised, SimulationCreate
 import app.collectors.suricata_collector as suricata
 
 
@@ -129,7 +129,7 @@ class SimulationTest(unittest.TestCase):
 
     def test_simulation_api_flow(self):
         sim = simulations_api.create_simulation(SimulationCreate(name="test"), db=self.db)
-        summary = simulations_api.apply_simulation_hypothesis(sim.id, {"type": "asset_compromised", "asset_id": 1}, db=self.db)
+        summary = simulations_api.apply_simulation_hypothesis(sim.id, AssetCompromised(type="asset_compromised", asset_id=1), db=self.db)
         self.assertEqual(summary["status"], "completed")
         self.assertIn("escalated_paths", summary["summary"])
         result = simulations_api.get_simulation_result(sim.id, db=self.db)
@@ -137,10 +137,14 @@ class SimulationTest(unittest.TestCase):
 
     def test_simulation_api_rejects_incomplete_hypothesis(self):
         from fastapi import HTTPException
+        from pydantic import TypeAdapter, ValidationError
+        from app.schemas.simulation import Hypothesis
+        with self.assertRaises(ValidationError):
+            TypeAdapter(Hypothesis).validate_python({"type": "asset_compromised"})
         sim = simulations_api.create_simulation(SimulationCreate(name="test"), db=self.db)
         with self.assertRaises(HTTPException) as ctx:
-            simulations_api.apply_simulation_hypothesis(sim.id, {"type": "asset_compromised"}, db=self.db)
-        self.assertEqual(ctx.exception.status_code, 400)
+            simulations_api.apply_simulation_hypothesis(sim.id, AssetCompromised(type="asset_compromised", asset_id=99), db=self.db)
+        self.assertEqual(ctx.exception.status_code, 404)
 
 
 class IncidentEngineTest(unittest.TestCase):

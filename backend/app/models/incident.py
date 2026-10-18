@@ -1,5 +1,5 @@
 from datetime import datetime, UTC
-from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, JSON, Index
 from app.database import Base
 
 
@@ -10,6 +10,7 @@ def _utcnow() -> datetime:
 
 class Incident(Base):
     __tablename__ = "incidents"
+    __table_args__ = (Index("ix_incidents_status_last_seen", "status", "last_seen"),)
 
     id = Column(Integer, primary_key=True, index=True)
     status = Column(String, nullable=False, default="detected")

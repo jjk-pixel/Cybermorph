@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.simulation import Simulation
-from app.schemas.simulation import SimulationCreate, SimulationOut
+from app.schemas.simulation import Hypothesis, SimulationCreate, SimulationOut
 from datetime import datetime, UTC
 from app.simulation.simulation_engine import run_what_if, HYPOTHESIS_TYPES
 
@@ -41,20 +41,17 @@ def get_simulation(simulation_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{simulation_id}/hypothesis")
-def apply_simulation_hypothesis(simulation_id: int, hypothesis: dict, db: Session = Depends(get_db)):
+def apply_simulation_hypothesis(simulation_id: int, hypothesis: Hypothesis, db: Session = Depends(get_db)):
+    """Hypothèse validée par son schéma (type discriminant, identifiants positifs, aucun champ inconnu)."""
     sim = db.query(Simulation).filter(Simulation.id == simulation_id).first()
     if not sim:
         raise HTTPException(status_code=404, detail="Simulation introuvable")
 
-    if hypothesis.get("type") not in HYPOTHESIS_TYPES:
-        raise HTTPException(status_code=400, detail=f"Type d'hypothèse invalide. Valeurs possibles : {list(HYPOTHESIS_TYPES.keys())}")
-
+    hypothesis = hypothesis.model_dump(exclude_none=True)
     try:
         result = run_what_if(db, hypothesis)
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Champ manquant dans l'hypothèse : {e}")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
 
     sim.hypothesis = hypothesis
     sim.result = result
