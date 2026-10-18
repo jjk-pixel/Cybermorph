@@ -104,7 +104,8 @@ def build_graph(db: Session) -> nx.DiGraph:
             connection_types=connection_types,
             alert_summary=alert_summary,
             details=[
-                {"protocol": c.protocol, "port": c.port, "connection_type": c.connection_type}
+                {"protocol": c.protocol, "port": c.port, "connection_type": c.connection_type,
+                 "source": c.source, "last_seen": c.last_seen.isoformat() if c.last_seen else None}
                 for c in conns
             ],
         )

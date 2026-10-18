@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.asset import Asset
 from app.schemas.asset import AssetCreate, AssetDeclaration, AssetOut
 from app.risk.risk_engine import calculate_risk
+from app.risk.signals import collect_signals
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
@@ -68,7 +69,8 @@ def declare_asset_attributes(asset_id: int, declaration: AssetDeclaration, db: S
         asset.scanner_reason = (declaration.scanner_reason or "Déclaré par l'opérateur") if declaration.is_scanner else None
 
     # Le score de risque dépend de la criticité : recalcul immédiat plutôt qu'au prochain cycle
-    result = calculate_risk(asset)
+    db.flush()
+    result = calculate_risk(asset, collect_signals(db).get(asset.id))
     asset.risk_score = result["risk_score"]
     asset.risk_factors = json.dumps(result, ensure_ascii=False, default=str)
     db.commit()

@@ -13,6 +13,8 @@ class NetworkConnection(Base):
     port = Column(Integer, nullable=True)
     connection_type = Column(String, nullable=True)  # ex: "detected", "inferred", "declared"
     status = Column(String, default="active")         # active, inactive
+    # Capteur à l'origine de la relation : suricata_flow, arp, zeek, operator ; NULL = antérieur à ce suivi
+    source = Column(String, nullable=True)
     last_seen = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -12,6 +12,7 @@ from app.mitre.mapping_engine import apply_mitre_mapping
 from app.database import SessionLocal
 from app.collectors.snapshot_collector import capture_snapshot
 from app.inventory.observations import reconcile_cycle
+from app.behavior.baseline import ingest_eve
 from app.models.asset import Asset
 
 logging.basicConfig(
@@ -69,12 +70,6 @@ def run_full_scan():
         logging.error(f"Erreur pendant le rapprochement d'inventaire : {e}")
         print(f"[CYBERMORPH][Orchestrateur] Erreur Inventaire : {e}")
     try:
-        apply_risk_scoring()
-        logging.info("Calcul du risque terminé avec succès.")
-    except Exception as e:
-        logging.error(f"Erreur pendant le calcul du risque : {e}")
-        print(f"[CYBERMORPH][Orchestrateur] Erreur Risk : {e}")
-    try:
         sync_suricata_alerts()
         logging.info("Synchronisation Suricata terminée avec succès.")
     except Exception as e:
@@ -90,6 +85,25 @@ def run_full_scan():
     except Exception as e:
         logging.error(f"Erreur pendant le mapping MITRE : {e}")
         print(f"[CYBERMORPH][Orchestrateur] Erreur MITRE : {e}")
+    try:
+        db = SessionLocal()
+        try:
+            stats = ingest_eve(db)
+            db.commit()
+        finally:
+            db.close()
+        logging.info(f"Flux Suricata (eve.json) : {stats}")
+        print(f"[CYBERMORPH][Comportement] {stats}")
+    except Exception as e:
+        logging.error(f"Erreur pendant l'ingestion eve.json : {e}")
+        print(f"[CYBERMORPH][Orchestrateur] Erreur Comportement : {e}")
+    # Le risque est calculé après les alertes et les flux : il tient compte des derniers faits observés
+    try:
+        apply_risk_scoring()
+        logging.info("Calcul du risque terminé avec succès.")
+    except Exception as e:
+        logging.error(f"Erreur pendant le calcul du risque : {e}")
+        print(f"[CYBERMORPH][Orchestrateur] Erreur Risk : {e}")
     try:
         capture_snapshot()
         logging.info("Snapshot capturé avec succès.")

@@ -28,7 +28,8 @@ class Asset(Base):
     criticality_reason = Column(String, nullable=True)
     criticality_updated_at = Column(DateTime(timezone=True), nullable=True)
     # Lot 2 — inventaire : autorisation (authorized / unauthorized, NULL = non statué) et provenance de ce statut
-    authorization = Column(String, nullable=True)
+    # (colonne « authorization_status » : « authorization » est un mot réservé de PostgreSQL)
+    authorization = Column("authorization_status", String, nullable=True)
     authorization_source = Column(String, nullable=True)   # learning, declared
     # Actif qui sonde le réseau (le capteur CYBERMORPH lui-même) : ses sondes ne sont pas du comportement normal
     is_scanner = Column(Boolean, nullable=True)

@@ -5,7 +5,7 @@
 import type { AttackPath, BlastRadius, IncidentStep, SnapshotDetail } from "../api/types";
 import { createStore, useStore } from "./createStore";
 
-export type ViewId = "overview" | "exposure" | "inventory" | "alerts" | "incidents" | "paths" | "mitre" | "timeline" | "simulations";
+export type ViewId = "overview" | "exposure" | "inventory" | "behavior" | "alerts" | "incidents" | "paths" | "mitre" | "timeline" | "simulations";
 
 export type SimulationOverlay = {
   name: string;

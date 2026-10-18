@@ -1889,6 +1889,101 @@ select.input {
 }
 
 /* ==========================================================================
+   Comportement : référence et écarts (lot 3)
+   ========================================================================== */
+
+.sw-ink { background: var(--ink); }
+.sw-beacon { width: 9px; height: 9px; background: var(--orange); transform: rotate(45deg); }
+
+.sensor-health {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
+
+.sensor-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cyan);
+}
+
+.sensor-health.is-down .sensor-dot { background: var(--red); }
+
+.deviation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deviation {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-left: 2px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: rgba(10, 22, 38, 0.6);
+}
+
+.deviation.sev-notice { border-left-color: var(--amber); }
+.deviation.sev-warning { border-left-color: var(--orange); }
+.deviation.is-selected { border-color: var(--violet); background: rgba(155, 92, 255, 0.1); }
+
+.deviation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.deviation-kind { color: var(--ink); font-weight: 600; }
+
+.deviation-text {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  text-align: left;
+}
+
+.deviation-text:hover:not(:disabled) { color: var(--cyan); }
+
+.deviation-reasons {
+  padding-left: 1.1em;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  list-style: disc;
+}
+
+.deviation-evidence { color: var(--ink-3); font-size: 0.6875rem; word-break: break-word; }
+
+.deviation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.relation-provenance {
+  grid-column: 1 / -1;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.tag-baseline { color: var(--cyan); border-color: rgba(34, 228, 255, 0.4); }
+.tag-baseline-new { color: var(--amber); border-color: rgba(255, 200, 87, 0.5); }
+.tag-baseline-accepted { color: var(--ink-2); border-color: var(--line-strong); }
+
+.table tr.band-moderate td:first-child { box-shadow: inset 2px 0 0 var(--amber); }
+
+/* ==========================================================================
    Adaptatif
    ========================================================================== */
 

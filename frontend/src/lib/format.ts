@@ -176,3 +176,44 @@ export const AUTHORIZATION_LABEL: Record<string, string> = {
   unauthorized: "Non autorisé",
 };
 
+export const DEVIATION_KIND_LABEL: Record<string, string> = {
+  new_communication: "Nouvelle activité",
+  port_scan: "Balayage de ports",
+  host_sweep: "Balayage d'hôtes",
+  unknown_host: "Hôte hors inventaire",
+};
+
+export const BASELINE_STATE_LABEL: Record<string, string> = {
+  baseline: "Référence",
+  new: "Nouvelle",
+  accepted: "Acceptée",
+};
+
+export const SCOPE_LABEL: Record<string, string> = {
+  local: "réseau local",
+  routed: "réseau routé",
+  external: "Internet",
+  multicast: "multidiffusion",
+  broadcast: "diffusion",
+  "link-local": "lien local",
+};
+
+export function formatBytes(value: number): string {
+  if (value < 1024) return `${value} o`;
+  const units = ["Ko", "Mo", "Go", "To"];
+  let v = value / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+/* Une observation de plus de 24 h ne décrit plus forcément le réseau actuel. */
+export const STALE_AFTER_MS = 24 * 3600 * 1000;
+
+export function isStale(value: string | null | undefined, now: number = Date.now()): boolean {
+  const date = parseDate(value);
+  return !!date && now - date.getTime() > STALE_AFTER_MS;
+}

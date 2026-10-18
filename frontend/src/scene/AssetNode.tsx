@@ -21,6 +21,8 @@ type Props = {
   choke: boolean;
   /* actif non autorisé (apparu après l'apprentissage ou déclaré comme tel) */
   unauthorized: boolean;
+  /* écarts comportementaux ouverts impliquant cet actif */
+  deviating: boolean;
   animate: boolean;
   onSelect: (id: number) => void;
   onHover: (id: number | null) => void;
@@ -41,10 +43,11 @@ function Shape({ type }: { type: string }) {
 }
 
 export function AssetNode({
-  asset, position, selected, hovered, dimmed, underAttack, compromised, exposed, critical, choke, unauthorized, animate, onSelect, onHover,
+  asset, position, selected, hovered, dimmed, underAttack, compromised, exposed, critical, choke, unauthorized, deviating, animate, onSelect, onHover,
 }: Props) {
   const body = useRef<Mesh>(null);
   const shell = useRef<Mesh>(null);
+  const beacon = useRef<Mesh>(null);
 
   const down = asset.status === "down";
   const risk = Number(asset.risk_score ?? 0);
@@ -55,6 +58,7 @@ export function AssetNode({
   useFrame(({ clock }, delta) => {
     if (!animate) return;
     if (body.current && asset.asset_type === "router") body.current.rotation.y += delta * 0.35;
+    if (beacon.current) beacon.current.rotation.y += delta * 1.6;
     if (shell.current) {
       const pulse = 1 + 0.12 * Math.sin(clock.elapsedTime * 3.2);
       shell.current.scale.setScalar(pulse);
@@ -137,6 +141,14 @@ export function AssetNode({
         <mesh rotation={[-Math.PI / 2, 0, Math.PI / 8]} position={[0, -position[1] + 0.02, 0]}>
           <ringGeometry args={[0.8, 0.86, 8]} />
           <meshBasicMaterial color={COLORS.violet} transparent opacity={0.85 * opacity} toneMapped={false} />
+        </mesh>
+      )}
+
+      {/* Écart comportemental ouvert : balise orange au-dessus du nœud */}
+      {deviating && (
+        <mesh ref={beacon} position={[0, 0.62, 0]}>
+          <octahedronGeometry args={[0.07, 0]} />
+          <meshBasicMaterial color={COLORS.orange} toneMapped={false} transparent opacity={opacity} />
         </mesh>
       )}
 

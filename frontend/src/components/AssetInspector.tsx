@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { LiveLink } from "../api/types";
 import {
   ASSET_TYPE_LABEL, EVIDENCE_LABEL, formatRelative, RISK_BREAKDOWN_LABEL, RISK_BREAKDOWN_MAX, riskBand, splitList,
 } from "../lib/format";
@@ -8,6 +9,26 @@ import { ui, useUi } from "../state/ui";
 import { AssetIdentity } from "./AssetIdentity";
 import { AssetProfile } from "./AssetProfile";
 import { Meter, Panel, PriorityTag, RiskTag, Score } from "./ui";
+
+/* Provenance lisible d'une relation : chaque preuve avec son âge (une observation ancienne reste visible comme telle). */
+function provenance(l: LiveLink): string {
+  const parts: string[] = [];
+  for (const d of l.details) {
+    const when = d.last_seen ? formatRelative(d.last_seen) : "date inconnue";
+    if (d.connection_type === "detected") {
+      const service = d.protocol === "icmp" ? "icmp" : `${d.protocol}/${d.port}`;
+      parts.push(`${service} observé ${d.source === "suricata_flow" ? "(flux)" : "(historique)"} ${when}`);
+    } else if (d.connection_type === "neighbor_detected") {
+      parts.push(`voisinage ARP ${when}`);
+    } else if (d.connection_type === "declared") {
+      parts.push("déclarée");
+    } else if (d.connection_type) {
+      parts.push(d.connection_type);
+    }
+  }
+  if (l.provenance?.ids) parts.push("alerte IDS");
+  return parts.join(" · ");
+}
 
 /* Fiche de l'asset sélectionné dans la scène : identité, exposition, explication du score, relations. */
 export function AssetInspector() {
@@ -104,16 +125,18 @@ export function AssetInspector() {
             <li key={`o${l.target}`}>
               <span className="dir">vers</span>
               <button type="button" className="link-button mono" onClick={() => ui.selectAsset(l.target)}>{label(l.target)}</button>
-              <span className="muted">{EVIDENCE_LABEL[l.evidence_level]}</span>
+              <span className="muted" title={provenance(l)}>{EVIDENCE_LABEL[l.evidence_level]}</span>
               <span className="mono num">{l.weight.toFixed(0)}</span>
+              <span className="relation-provenance">{provenance(l)}</span>
             </li>
           ))}
           {related.incoming.map((l) => (
             <li key={`i${l.source}`}>
               <span className="dir">depuis</span>
               <button type="button" className="link-button mono" onClick={() => ui.selectAsset(l.source)}>{label(l.source)}</button>
-              <span className="muted">{EVIDENCE_LABEL[l.evidence_level]}</span>
+              <span className="muted" title={provenance(l)}>{EVIDENCE_LABEL[l.evidence_level]}</span>
               <span className="mono num">{l.weight.toFixed(0)}</span>
+              <span className="relation-provenance">{provenance(l)}</span>
             </li>
           ))}
         </ul>

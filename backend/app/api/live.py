@@ -16,6 +16,7 @@ from app.models.incident import Incident
 from app.models.network_connection import NetworkConnection
 from app.models.snapshot import Snapshot
 from app.models.observation import AssetChange
+from app.models.behavior import Deviation
 from app.attack_graph.graph_engine import build_graph, find_paths_on_graph, EVIDENCE_RANK, EVIDENCE_LABELS
 from app.incidents.incident_engine import ACTIVE_STATUSES
 from app.exposure.criticality import effective_criticality
@@ -29,6 +30,7 @@ logger = logging.getLogger("cybermorph.live")
 LIVE_INTERVAL_SECONDS = 5
 RECENT_ALERTS_LIMIT = 25
 RECENT_CHANGES_LIMIT = 10
+RECENT_DEVIATIONS_LIMIT = 12
 LIVE_PATH_MIN_SCORE = 25.0
 
 
@@ -129,6 +131,26 @@ def _recent_alerts(db: Session) -> list[dict]:
     ]
 
 
+def _provenance(edge: dict) -> dict:
+    """
+    D'où vient une relation : observée (flux ou scan de service), inférée (voisinage ARP), déclarée (opérateur),
+    corroborée par une alerte IDS. Plusieurs provenances peuvent coexister sur une même paire.
+    """
+    types = set(edge["connection_types"])
+    seen = [d["last_seen"] for d in edge["details"] if d.get("last_seen")]
+    observed = [d for d in edge["details"] if d.get("connection_type") == "detected"]
+    return {
+        "provenance": {
+            "observed": bool(observed),
+            "inferred": bool(types & {"neighbor_detected", "inferred"}),
+            "declared": "declared" in types,
+            "ids": "alert" in types,
+        },
+        "observed_sources": sorted({d.get("source") or "historique" for d in observed}),
+        "last_seen": max(seen) if seen else None,
+    }
+
+
 def _recent_changes(db: Session) -> list[dict]:
     """Derniers changements d'inventaire significatifs (hors simple information)."""
     rows = (
@@ -160,6 +182,11 @@ def get_live_state(db: Session) -> dict:
     last_snapshot = db.query(Snapshot.captured_at).order_by(Snapshot.captured_at.desc()).first()
 
     risk_scores = [a.risk_score or 0.0 for a in assets]
+    open_deviations = db.query(Deviation).filter(Deviation.status == "open").order_by(Deviation.last_seen.desc()).all()
+    deviations_by_asset: dict[int, int] = {}
+    for d in open_deviations:
+        for asset_id in {d.src_asset_id, d.dst_asset_id} - {None}:
+            deviations_by_asset[asset_id] = deviations_by_asset.get(asset_id, 0) + 1
 
     return {
         "type": "state_update",
@@ -178,6 +205,7 @@ def get_live_state(db: Session) -> dict:
                 "criticality": effective_criticality(a),
                 "authorization": a.authorization,
                 "is_scanner": bool(a.is_scanner),
+                "open_deviations": deviations_by_asset.get(a.id, 0),
             }
             for a in assets
         ],
@@ -196,6 +224,7 @@ def get_live_state(db: Session) -> dict:
                 "evidence_level": EVIDENCE_LABELS[max(EVIDENCE_RANK.get(ct, 1) for ct in data["connection_types"])],
                 "details": data["details"],
                 "alert_summary": data["alert_summary"],
+                **_provenance(data),
             }
             for u, v, data in graph.edges(data=True)
         ],
@@ -210,6 +239,12 @@ def get_live_state(db: Session) -> dict:
         "active_incidents": active_incidents,
         "recent_alerts": _recent_alerts(db),
         "recent_changes": _recent_changes(db),
+        "open_deviations": [
+            {"id": d.id, "kind": d.kind, "severity": d.severity, "src_asset_id": d.src_asset_id,
+             "dst_asset_id": d.dst_asset_id, "src_ip": d.src_ip, "dst_ip": d.dst_ip, "explanation": d.explanation,
+             "last_seen": _iso(d.last_seen), "occurrences": d.occurrences}
+            for d in open_deviations[:RECENT_DEVIATIONS_LIMIT]
+        ],
         "stats": {
             "assets": len(assets),
             "assets_up": sum(1 for a in assets if a.status == "up"),
@@ -222,6 +257,7 @@ def get_live_state(db: Session) -> dict:
             "max_path_score": max((p["score"] for p in paths), default=0.0),
             "unauthorized_assets": sum(1 for a in assets if a.authorization == "unauthorized"),
             "changes_24h": db.query(AssetChange).filter(AssetChange.detected_at >= day_ago).count(),
+            "open_deviations": len(open_deviations),
             "avg_risk": round(sum(risk_scores) / len(risk_scores), 1) if risk_scores else 0.0,
             "max_risk": max(risk_scores, default=0.0),
         },

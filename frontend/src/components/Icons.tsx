@@ -42,6 +42,15 @@ export const IconInventory = (p: IconProps) => (
   </svg>
 );
 
+/* Comportement : tracé habituel (pointillé) et écart */
+export const IconBehavior = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M2 12h3l2-4 3 6 2-3h6" strokeDasharray="0" />
+    <path d="M2 7h16" strokeDasharray="1.5 2.5" />
+    <circle cx="10" cy="14" r="1.2" fill="currentColor" />
+  </svg>
+);
+
 export const IconAlert = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M10 2.5 18 17H2z" />

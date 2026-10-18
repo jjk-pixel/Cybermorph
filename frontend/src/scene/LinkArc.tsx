@@ -43,9 +43,12 @@ function Flow({ from, mid, to, color, weight, count }: { from: Vec3; mid: Vec3; 
 }
 
 export function LinkArc({ link, dimmed, animate }: { link: SceneLink; dimmed: boolean; animate: boolean }) {
-  const color = link.removed ? COLORS.muted : EVIDENCE_COLOR[link.evidence_level] ?? COLORS.blue;
+  // Une relation seulement déclarée par l'opérateur est dessinée en blanc : ni observée, ni inférée
+  const declaredOnly = link.provenance?.declared && !link.provenance.observed && !link.provenance.ids;
+  const color = link.removed ? COLORS.muted : declaredOnly ? COLORS.ink : EVIDENCE_COLOR[link.evidence_level] ?? COLORS.blue;
   const weak = link.evidence_level === "voisinage_detecte" || link.evidence_level === "inferee";
-  const opacity = link.removed ? 0.35 : dimmed ? 0.12 : weak ? 0.35 : 0.65;
+  const base = link.removed ? 0.35 : dimmed ? 0.12 : weak ? 0.35 : 0.65;
+  const opacity = link.stale && !dimmed ? base * 0.45 : base;
 
   return (
     <group>
@@ -61,7 +64,7 @@ export function LinkArc({ link, dimmed, animate }: { link: SceneLink; dimmed: bo
         transparent
         opacity={opacity}
       />
-      {animate && !link.removed && !dimmed && (
+      {animate && !link.removed && !dimmed && !link.stale && (
         <Flow from={link.from} mid={link.mid} to={link.to} color={color} weight={link.weight} count={weak ? 1 : 3} />
       )}
     </group>

@@ -15,6 +15,7 @@ const VIEW_TITLE = {
   overview: "Jumeau numérique",
   exposure: "Exposition des actifs critiques",
   inventory: "Inventaire et identités",
+  behavior: "Comportement réseau",
   alerts: "Alertes IDS",
   incidents: "Incidents",
   paths: "Chemins d'attaque",

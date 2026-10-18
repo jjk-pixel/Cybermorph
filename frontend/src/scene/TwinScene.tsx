@@ -130,6 +130,7 @@ function SceneContent({ animate }: { animate: boolean }) {
             critical={markers.critical.get(asset.id) ?? null}
             choke={markers.choke.has(asset.id)}
             unauthorized={asset.authorization === "unauthorized"}
+            deviating={markers.deviating.has(asset.id)}
             animate={animate}
             onSelect={(id) => ui.selectAsset(id === selectedId ? null : id)}
             onHover={ui.hoverAsset}

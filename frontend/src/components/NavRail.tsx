@@ -1,12 +1,13 @@
 import type { ComponentType, SVGProps } from "react";
 import { useLive } from "../state/live";
 import { ui, useUi, type ViewId } from "../state/ui";
-import { BrandMark, IconAlert, IconExposure, IconIncident, IconInventory, IconMatrix, IconPath, IconSimulation, IconTimeline, IconTwin } from "./Icons";
+import { BrandMark, IconAlert, IconBehavior, IconExposure, IconIncident, IconInventory, IconMatrix, IconPath, IconSimulation, IconTimeline, IconTwin } from "./Icons";
 
 const ITEMS: { id: ViewId; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { id: "overview", label: "Jumeau", icon: IconTwin },
   { id: "exposure", label: "Exposition", icon: IconExposure },
   { id: "inventory", label: "Inventaire", icon: IconInventory },
+  { id: "behavior", label: "Comportement", icon: IconBehavior },
   { id: "alerts", label: "Alertes", icon: IconAlert },
   { id: "incidents", label: "Incidents", icon: IconIncident },
   { id: "paths", label: "Chemins", icon: IconPath },
@@ -20,9 +21,10 @@ export function NavRail() {
   const incidents = useLive((s) => s.state?.stats.active_incidents ?? 0);
   const alerts24h = useLive((s) => s.state?.stats.alerts_24h ?? 0);
   const unauthorized = useLive((s) => s.state?.stats.unauthorized_assets ?? 0);
+  const deviations = useLive((s) => s.state?.stats.open_deviations ?? 0);
 
   const badge = (id: ViewId) =>
-    id === "incidents" ? incidents : id === "alerts" ? alerts24h : id === "inventory" ? unauthorized : 0;
+    id === "incidents" ? incidents : id === "alerts" ? alerts24h : id === "inventory" ? unauthorized : id === "behavior" ? deviations : 0;
 
   return (
     <nav className="rail" aria-label="Navigation principale">

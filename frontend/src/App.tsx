@@ -5,6 +5,7 @@ import { StatusBar } from "./components/StatusBar";
 import { startLive, stopLive, useLive } from "./state/live";
 import { useUi, type ViewId } from "./state/ui";
 import { AlertsView } from "./views/AlertsView";
+import { BehaviorView } from "./views/BehaviorView";
 import { ExposureView } from "./views/ExposureView";
 import { InventoryView } from "./views/InventoryView";
 import { IncidentsView } from "./views/IncidentsView";
@@ -21,6 +22,7 @@ const VIEWS: Record<ViewId, () => React.JSX.Element | null> = {
   overview: OverviewView,
   exposure: ExposureView,
   inventory: InventoryView,
+  behavior: BehaviorView,
   alerts: AlertsView,
   incidents: IncidentsView,
   paths: PathsView,

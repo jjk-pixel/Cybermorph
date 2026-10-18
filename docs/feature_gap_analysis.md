@@ -199,3 +199,65 @@ jour de ce document (section « Résultats des lots »).
 - DHCP a fourni la MAC de .135, que Nmap ne voit pas pour l'hôte local.
 - Les noms `vmware-*` sont désormais identifiés comme « déduits ».
 - Premier changement réel : « port 8010 ouvert sur .135 », qui est l'instance de test lancée pour vérifier l'API.
+
+### Lot 3 — Comportement (livré le 18/10/2026)
+
+**Livré**
+- Migration `0004_behavior` :
+  - tables `communications` et `deviations` ;
+  - colonne `network_connections.source` ;
+  - renommage sans perte de `assets.authorization` en `authorization_status` (mot réservé PostgreSQL).
+- **Lecture incrémentale d'`eve.json`** :
+  - la position est mémorisée en base ;
+  - à la rotation, la fin de l'ancien fichier est relue dans `eve.json.1.gz` (vérification par empreinte) ;
+  - les lignes incomplètes ne sont jamais lues ;
+  - le fichier n'est jamais modifié.
+- **Activités** : les flux sont agrégés par source, destination (ou portée), protocole, port et protocole
+  applicatif, avec compteurs, volumes, échantillons de destinations externes, SNI TLS et `flow_id`.
+- **Sondes exclues** :
+  - les flux de l'actif scanner vers le réseau local ne sont jamais appris ;
+  - une tentative TCP sans SYN+ACK n'est pas une communication. Un RST n'est pas une réponse : la passerelle NAT
+    VMware répond RST sur tous les ports.
+- **Référence et écarts explicables** :
+  - pendant l'apprentissage, une activité nouvelle est apprise ; ensuite, c'est un écart ;
+  - un actif découvert après l'apprentissage dispose de 24 h pour apprendre ses propres activités ;
+  - la sévérité dépend de facteurs explicites (port à risque, cible critique, source non autorisée, sortie
+    Internet sur un port inhabituel, alerte IDS sur la même paire) ;
+  - elle est atténuée si la même activité est déjà connue depuis un autre actif.
+- **Balayages** : ports d'une cible (≥ 15) ou hôtes sur un même port (≥ 8), uniquement depuis un actif non scanner.
+- **Hôte hors inventaire** : une IP locale vue par Suricata mais jamais par Nmap est signalée.
+- **Identité** : le DHCP fournit la MAC, et l'adresse IPv6 lien-local EUI-64 est rattachée à l'actif qui porte cette
+  MAC.
+- **Topologie observée** : un flux établi entre deux actifs crée ou rafraîchit une relation « observée », qui
+  expire après 24 h sans flux. Le flux live publie, pour chaque relation, sa provenance (observée, inférée,
+  déclarée, IDS) et sa dernière observation.
+- **Risque** :
+  - le critère « signaux comportementaux » intègre les écarts ouverts, les alertes IDS émises ou reçues en 24 h et
+    le statut non autorisé ;
+  - une **confiance du score** est publiée (OS, MAC, visibilité dans les flux, fraîcheur) ;
+  - le risque est désormais calculé après la lecture des alertes et des flux.
+- **API** : `GET /api/behavior/`, `/communications`, `/deviations`, `POST /deviations/{id}/learn`, `POST /deviations/{id}/acknowledge`.
+- **Interface** :
+  - vue « Comportement » : écarts avec raisons et preuves, activités, santé du capteur, méthode ;
+  - scène 3D : balise orange sur les actifs en écart, relation déclarée en blanc, relation non revue depuis 24 h
+    estompée ;
+  - inspecteur : provenance et âge de chaque relation.
+
+**Constats sur les données réelles (premier passage)**
+- 50 116 flux lus, dont 49 981 sondes du capteur écartées.
+- 9 activités apprises :
+  - navigation de .1 vers l'interface (:5173) ;
+  - DHCP de .1 vers .254 ;
+  - SSDP, mDNS et LLMNR en multidiffusion ;
+  - NTP et TLS de .135 vers Internet (`api.anthropic.com`, `datadoghq.com`, `downloads.claude.ai`).
+- Variations de risque dues aux alertes IDS : .1 passe de 20,5 à 29,5 (émetteur d'alertes sévères en 24 h) et
+  .135 de 28,0 à 32,5 (cible de ces alertes).
+
+**Limites**
+- Le trafic réel hors capteur est très faible sur ce lab : la référence est mince mais authentique.
+- L'hôte capteur est à la fois scanner et serveur. Ses communications locales ne sont pas apprises, faute de pouvoir
+  distinguer ses sondes de son trafic normal ; seules ses sorties vers l'extérieur le sont.
+- Pas de détection sur les volumes.
+- Les seuils de balayage sont fixes.
+- Un cycle d'orchestration (00:55) a échoué pendant la migration `0004`, car le modèle a été modifié quelques
+  secondes avant l'application de la migration ; aucune donnée n'a été perdue.

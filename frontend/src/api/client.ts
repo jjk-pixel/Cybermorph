@@ -7,7 +7,10 @@ import type {
   AssetChange,
   AssetDeclaration,
   AttackPath,
+  BehaviorSummary,
   BlastRadius,
+  Communication,
+  Deviation,
   Exposure,
   Hypothesis,
   IncidentDetail,
@@ -67,6 +70,13 @@ export const api = {
   exposure: (minScore = 25, maxLength = 4) =>
     request<Exposure>(`/api/exposure/${query({ min_score: minScore, max_length: maxLength })}`),
   blastRadius: (assetId: number) => request<BlastRadius>(`/api/exposure/blast-radius/${assetId}`),
+  behavior: () => request<BehaviorSummary>("/api/behavior/"),
+  communications: (params: { asset_id?: number; state?: string } = {}) =>
+    request<Communication[]>(`/api/behavior/communications${query(params)}`),
+  deviations: (params: { status?: string; asset_id?: number } = {}) =>
+    request<Deviation[]>(`/api/behavior/deviations${query(params)}`),
+  learnDeviation: (id: number) => request<Deviation>(`/api/behavior/deviations/${id}/learn`, { method: "POST" }),
+  acknowledgeDeviation: (id: number) => request<Deviation>(`/api/behavior/deviations/${id}/acknowledge`, { method: "POST" }),
   inventory: () => request<Inventory>("/api/inventory/"),
   inventoryAsset: (assetId: number) => request<InventoryDetail>(`/api/inventory/${assetId}`),
   changes: (params: { limit?: number; asset_id?: number; min_severity?: string; include_acknowledged?: boolean } = {}) =>

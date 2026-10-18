@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import type { AttackPath, LiveAsset, LiveIncident, LiveLink } from "../api/types";
-import { isCriticalLevel } from "../lib/format";
+import { isCriticalLevel, isStale } from "../lib/format";
 import { useLive } from "../state/live";
 import { useUi } from "../state/ui";
 import { arcControl, computeLayout, linkSide, type Vec3 } from "./layout";
 
-export type SceneLink = LiveLink & { from: Vec3; to: Vec3; mid: Vec3; removed: boolean };
+export type SceneLink = LiveLink & { from: Vec3; to: Vec3; mid: Vec3; removed: boolean; stale: boolean };
 
 export type Trace = {
   key: string;
@@ -45,8 +45,11 @@ export function useSceneModel() {
     [assets],
   );
 
+  const generatedAt = live?.generated_at;
   const links: SceneLink[] = useMemo(() => {
     const raw = liveLinks ?? [];
+    // Référence de fraîcheur : l'heure de calcul de l'état live (pur, sans Date.now)
+    const reference = Date.parse(generatedAt ?? "") || 0;
     const keys = new Set(raw.map((l) => `${l.source}>${l.target}`));
     const removed = simulation?.removedLink;
     return raw.flatMap((l) => {
@@ -60,9 +63,11 @@ export function useSceneModel() {
         to,
         mid: arcControl(from, to, side),
         removed: !!removed && removed[0] === l.source && removed[1] === l.target,
+        // Relation dont la dernière observation date de plus de 24 h : affichée estompée
+        stale: !l.provenance?.ids && isStale(l.last_seen, reference),
       }];
     });
-  }, [liveLinks, positions, simulation?.removedLink]);
+  }, [liveLinks, generatedAt, positions, simulation?.removedLink]);
 
   const traces: Trace[] = useMemo(() => {
     const result: Trace[] = [];
@@ -118,6 +123,7 @@ export function useSceneModel() {
       // Actifs critiques (cibles des chemins) et points de blocage calculés sur les chemins live
       critical: new Map(assets.filter((a) => a.criticality && isCriticalLevel(a.criticality.level)).map((a) => [a.id, a.criticality.source])),
       choke: new Set((chokePoints ?? []).map((c) => c.asset_id)),
+      deviating: new Set(assets.filter((a) => (a.open_deviations ?? 0) > 0).map((a) => a.id)),
     };
   }, [activeIncidents, focusIncident, simulation, blast, assets, chokePoints]);
 

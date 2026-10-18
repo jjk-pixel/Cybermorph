@@ -50,6 +50,7 @@ export type LiveAsset = {
   criticality: Criticality;
   authorization: "authorized" | "unauthorized" | null;
   is_scanner: boolean;
+  open_deviations: number;
 };
 
 export type EvidenceLevel = "voisinage_detecte" | "inferee" | "observee" | "alerte_ids";
@@ -68,8 +69,12 @@ export type LiveLink = {
   weight: number;
   connection_types: string[];
   evidence_level: EvidenceLevel;
-  details: { protocol: string | null; port: number | null; connection_type: string | null }[];
+  details: { protocol: string | null; port: number | null; connection_type: string | null; source?: string | null; last_seen?: string | null }[];
   alert_summary: AlertSummary | null;
+  /* provenance de la relation : plusieurs peuvent coexister sur une paire */
+  provenance: { observed: boolean; inferred: boolean; declared: boolean; ids: boolean };
+  observed_sources: string[];
+  last_seen: string | null;
 };
 
 export type AttackPath = {
@@ -148,6 +153,7 @@ export type LiveStats = {
   max_risk: number;
   unauthorized_assets: number;
   changes_24h: number;
+  open_deviations: number;
 };
 
 export type LiveState = {
@@ -162,7 +168,21 @@ export type LiveState = {
   active_incidents: LiveIncident[];
   recent_alerts: Alert[];
   recent_changes: LiveChange[];
+  open_deviations: LiveDeviation[];
   stats: LiveStats;
+};
+
+export type LiveDeviation = {
+  id: number;
+  kind: string;
+  severity: ChangeSeverity;
+  src_asset_id: number | null;
+  dst_asset_id: number | null;
+  src_ip: string | null;
+  dst_ip: string | null;
+  explanation: string;
+  last_seen: string;
+  occurrences: number;
 };
 
 export type LiveChange = {
@@ -422,5 +442,63 @@ export type InventoryDetail = {
   identity: Identity;
   observations: Observation[];
   changes: AssetChange[];
+};
+
+/* ---- Comportement (lot 3) ---- */
+
+export type BaselineState = "baseline" | "new" | "accepted";
+
+export type Communication = {
+  id: number;
+  src_ip: string;
+  dst_key: string;
+  dst_scope: "local" | "routed" | "external" | "multicast" | "broadcast" | "link-local";
+  src_asset_id: number | null;
+  dst_asset_id: number | null;
+  proto: string;
+  dst_port: number | null;
+  app_proto: string | null;
+  first_seen: string;
+  last_seen: string;
+  flow_count: number;
+  established_count: number;
+  bytes_toserver: number;
+  bytes_toclient: number;
+  baseline_state: BaselineState;
+  learned_via: string | null;
+  details: { destinations?: string[]; sni?: string[]; flow_ids?: number[] };
+};
+
+export type Deviation = {
+  id: number;
+  kind: "new_communication" | "port_scan" | "host_sweep" | "unknown_host" | string;
+  severity: ChangeSeverity;
+  status: "open" | "acknowledged" | "learned";
+  src_ip: string | null;
+  dst_ip: string | null;
+  src_asset_id: number | null;
+  dst_asset_id: number | null;
+  communication_id: number | null;
+  explanation: string;
+  reasons: string[];
+  evidence: { alert_ids?: number[]; flow_ids?: number[]; similar_communication_id?: number; ports_sample?: number[]; distinct_ports?: number };
+  first_seen: string;
+  last_seen: string;
+  occurrences: number;
+  reviewed_at: string | null;
+};
+
+export type BehaviorSummary = {
+  learning: LearningWindow;
+  asset_learning_hours: number;
+  sensor: {
+    path: string;
+    healthy: boolean;
+    last_run: (Record<string, number | string | boolean> & { at: string; error?: string }) | null;
+    thresholds: { port_scan_ports: number; host_sweep_hosts: number };
+  };
+  communications: Record<BaselineState, number>;
+  deviations: Record<"open" | "acknowledged" | "learned", number>;
+  method: string[];
 };
 
