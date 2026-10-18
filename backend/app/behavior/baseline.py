@@ -31,6 +31,7 @@ from app.models.behavior import Communication, Deviation
 from app.models.network_connection import NetworkConnection
 from app.models.observation import AssetObservation
 from app.risk.risk_engine import DANGEROUS_PORTS
+from app.topology.relations import refresh_quality
 
 EVE_PATH = os.getenv("CYBERMORPH_EVE_PATH", "/var/log/suricata/eve.json")
 ASSET_LEARNING = timedelta(hours=float(os.getenv("CYBERMORPH_ASSET_LEARNING_HOURS", "24")))
@@ -237,6 +238,9 @@ def _upsert_relation(ctx: _Context, src: Asset, dst: Asset, comm: Communication,
             connection_type="detected", status="active", source="suricata_flow", last_seen=seen,
         )
         ctx.db.add(relation)
+    if comm.details and comm.details.get("flow_ids"):
+        relation.evidence = {"communication_id": comm.id, "flow_ids": comm.details["flow_ids"][-5:]}
+    refresh_quality(relation, ctx.now)
     ctx.relations[key] = relation
 
 

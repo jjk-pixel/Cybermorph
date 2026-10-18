@@ -148,6 +148,8 @@ def _provenance(edge: dict) -> dict:
         },
         "observed_sources": sorted({d.get("source") or "historique" for d in observed}),
         "last_seen": max(seen) if seen else None,
+        "confidence": edge.get("confidence"),
+        "relation_classes": edge.get("relation_classes", []),
     }
 
 

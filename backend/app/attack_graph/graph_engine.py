@@ -6,6 +6,7 @@ from app.models.alert import Alert
 from app.models.network_connection import NetworkConnection
 from app.correlation.alert_correlation import compute_alert_score
 from app.exposure.criticality import effective_criticality, is_target_level
+from app.topology.relations import assess
 
 # Poids de transition, par type de service exposé sur la connexion cible
 SERVICE_EXPOSURE_WEIGHTS = {
@@ -48,8 +49,11 @@ MAX_PATHS_PER_PAIR = 25
 MAX_TOTAL_PATHS = 500
 
 
-def build_graph(db: Session) -> nx.DiGraph:
-    """Construit le graphe orienté Asset -> Asset, en corroborant chaque relation avec les alertes IDS disponibles."""
+def build_graph(db: Session, now=None) -> nx.DiGraph:
+    """
+    Construit le graphe orienté Asset -> Asset à partir des relations persistées, en corroborant chaque relation avec
+    les alertes IDS disponibles. Une relation dont la période de validité est dépassée n'y figure pas.
+    """
     graph = nx.DiGraph()
 
     assets = db.query(Asset).all()
@@ -66,10 +70,14 @@ def build_graph(db: Session) -> nx.DiGraph:
             criticality=effective_criticality(asset)["level"],
         )
 
-    connections = db.query(NetworkConnection).filter(NetworkConnection.status == "active").all()
+    connections = db.query(NetworkConnection).filter(NetworkConnection.status == "active").order_by(NetworkConnection.id).all()
 
     pair_data: dict[tuple[int, int], list[NetworkConnection]] = {}
+    quality: dict[int, dict] = {}
     for conn in connections:
+        quality[conn.id] = assess(conn, now)
+        if quality[conn.id]["stale"]:
+            continue
         key = (conn.source_asset_id, conn.destination_asset_id)
         pair_data.setdefault(key, []).append(conn)
 
@@ -103,9 +111,14 @@ def build_graph(db: Session) -> nx.DiGraph:
             weight=final_weight,
             connection_types=connection_types,
             alert_summary=alert_summary,
+            confidence=max(quality[c.id]["confidence"] for c in conns),
+            relation_classes=sorted({quality[c.id]["relation_class"] for c in conns}),
             details=[
-                {"protocol": c.protocol, "port": c.port, "connection_type": c.connection_type,
-                 "source": c.source, "last_seen": c.last_seen.isoformat() if c.last_seen else None}
+                {"id": c.id, "protocol": c.protocol, "port": c.port, "connection_type": c.connection_type,
+                 "source": c.source, "last_seen": c.last_seen.isoformat() if c.last_seen else None,
+                 "relation_class": quality[c.id]["relation_class"], "origin": quality[c.id]["origin"],
+                 "confidence": quality[c.id]["confidence"], "reason": quality[c.id]["reason"],
+                 "valid_until": quality[c.id]["valid_until"].isoformat() if quality[c.id]["valid_until"] else None}
                 for c in conns
             ],
         )

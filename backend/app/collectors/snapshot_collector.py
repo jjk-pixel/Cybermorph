@@ -36,7 +36,7 @@ def capture_snapshot():
             "version": 1,
             "relations": [
                 {"source": c.source_asset_id, "target": c.destination_asset_id, "connection_type": c.connection_type,
-                 "protocol": c.protocol, "port": c.port, "origin": c.source,
+                 "protocol": c.protocol, "port": c.port, "origin": c.source, "confidence": c.confidence,
                  "last_seen": c.last_seen.isoformat() if c.last_seen else None}
                 for c in connections if c.status == "active"
             ],
