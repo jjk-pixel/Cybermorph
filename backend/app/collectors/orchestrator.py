@@ -131,8 +131,9 @@ def _run_cycle(cycle_id: str, start: datetime) -> dict:
             print(f"[CYBERMORPH][Orchestrateur] Étape {name} : {status}")
 
     duration = (datetime.now(UTC) - start).total_seconds()
+    # « skipped » (ex. aucune source de vulnérabilités configurée) ne dégrade pas le cycle : rien n'a échoué
     overall = "interrupted" if runs.stop_requested.is_set() else (
-        "success" if all(s == "success" for s in results.values()) else "partial")
+        "success" if all(s in ("success", "skipped") for s in results.values()) else "partial")
     runs.record_run("cycle", overall, start, cycle_id, stats={"steps": results})
     logger.info("cycle_end", extra={"cycle_id": cycle_id, "status": overall, "duration_s": round(duration, 1), "steps": results})
     print(f"[CYBERMORPH][Orchestrateur] Cycle terminé en {duration:.1f}s ({overall})")

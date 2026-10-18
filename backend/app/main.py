@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app import models  # noqa: F401  (enregistre toutes les tables)
-from app.api import assets, network_connections, attack_paths, alerts, attack_techniques, simulations, timeline, live, incidents, exposure, inventory, behavior, history, trace, vulnerabilities, correlations
+from app.api import assets, network_connections, attack_paths, alerts, attack_techniques, simulations, timeline, live, incidents, exposure, inventory, behavior, history, trace, vulnerabilities, correlations, system
 from fastapi.middleware.cors import CORSMiddleware
 from app.security import TokenAuthMiddleware, CORS_ORIGINS
 
@@ -35,6 +35,7 @@ app.include_router(history.router)
 app.include_router(trace.router)
 app.include_router(vulnerabilities.router)
 app.include_router(correlations.router)
+app.include_router(system.router)
 
 @app.get("/")
 def root():
@@ -46,4 +47,5 @@ def root():
 
 @app.get("/api/health")
 def health():
-    return {"status": "healthy"}
+    """Vivacité de l'API seulement (route publique). La santé de la collecte est servie par /api/system/health."""
+    return {"status": "healthy", "scope": "api", "collection_health": "/api/system/health"}
