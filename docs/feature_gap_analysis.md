@@ -261,3 +261,59 @@ jour de ce document (section « Résultats des lots »).
 - Les seuils de balayage sont fixes.
 - Un cycle d'orchestration (00:55) a échoué pendant la migration `0004`, car le modèle a été modifié quelques
   secondes avant l'application de la migration ; aucune donnée n'a été perdue.
+
+### Lot 4 — Mémoire et traçabilité (livré le 18/10/2026)
+
+**Livré**
+- Migration `0005_traceability` : colonnes `alerts.evidence` et `snapshots.state` (JSON nullables).
+- **Preuves sources des alertes** :
+  - première et dernière ligne `fast.log`, avec leur position en octets ;
+  - `flow_id` Suricata tiré des événements `alert` d'`eve.json`, avec la même signature `gid:sid:rev` et le même couple
+    d'IP. C'est un lien exact, sans heuristique.
+- **Snapshots complets** : chaque cycle enregistre les relations actives (avec leur provenance), les attributs des
+  actifs (ports, OS, MAC, autorisation, criticité) et les 20 premiers chemins.
+- **Reconstitution historique** (`GET /api/history/state?at=`) :
+  - à partir du snapshot, du journal d'observations (valeurs courantes à la date demandée), des activités, des écarts
+    et des changements depuis le scan précédent ;
+  - la **couverture** de chaque source est publiée : avant sa mise en service, rien n'est reconstitué.
+- **Traçabilité** :
+  - routes `GET /api/trace/alert/{id}`, `/incident/{id}` et `/deviation/{id}` ;
+  - chaque lien porte sa nature : « exact (flow_id) », « même paire », « déclencheur », « corrélé », « corrobore ».
+- **Interface** :
+  - chaîne de preuves dans la vue Alertes (clic sur une ligne) et dans le détail d'un incident ;
+  - relecture de la topologie enregistrée dans la scène, avec la fraîcheur calculée à l'instant rejoué ;
+  - détail de reconstitution et changements dans l'Historique.
+
+**Constats sur les données réelles**
+- Au premier cycle, 20 événements d'alerte d'`eve.json` ont été rattachés à leur `flow_id`.
+- Exemple de chaîne : alerte « ICMPv4 unknown code » → ligne `fast.log` à l'octet 47 159 → `flow_id` → aucune
+  activité, car c'est une sonde du capteur, exclue de la référence. L'interface le dit, plutôt que d'inventer un lien.
+- Les 2 300 snapshots antérieurs n'ont que le résumé : leur relecture le signale explicitement.
+- Le journal ne contient aucun cycle entre le 17 septembre et début octobre : la minuterie ne tournait pas.
+
+---
+
+## Bilan après les quatre lots
+
+| # | Capacité | État | Réserve |
+|---|---|---|---|
+| 1 | Inventaire et rapprochement des identités | Opérationnel | rapprochement volontairement conservateur (aucune fusion) |
+| 2 | Classification explicable et confiance | Opérationnel | règles de ports et d'OS, pas d'empreintes |
+| 3 | Historique des observations et changements | Opérationnel | commence le 18/10/2026 |
+| 4 | Topologie observée, inférée et déclarée | Opérationnel | relations « historiques » Zeek du 2 septembre conservées et signalées comme telles |
+| 5 | Référence comportementale | Opérationnel, en apprentissage jusqu'au 20/10 02:51 UTC | trafic hors capteur très faible sur ce lab |
+| 6 | Écarts explicables | Opérationnel | aucun écart réel à ce jour : la référence est encore en apprentissage |
+| 7 | Risque avec preuves, criticité, exposition et confiance | Opérationnel | aucune CVE (bloqué : pas de source) |
+| 8 | Chemins vers les actifs critiques | Opérationnel | — |
+| 9 | Points de blocage et recommandations | Opérationnel | estimations sur le modèle |
+| 10 | Reconstitution historique | Partiel | complète depuis le lot 4, résumée avant |
+| 11 | Corrélation et traçabilité | Opérationnel | `flow_id` uniquement pour les alertes vues dans `eve.json` depuis le lot 4 |
+| 12 | Visualisations intégrées au jumeau | Opérationnel | rendu WebGL non vérifié visuellement (pas de navigateur sur la machine) |
+
+**Toujours bloqué ou hors périmètre**
+- **Vulnérabilités** : il faudrait importer les résultats d'un scanner (OpenVAS/Greenbone, `nmap --script vulners`).
+  Ce n'est pas branché, et rien n'est affiché à ce sujet.
+- **Zeek** : installé mais non utilisé. Suricata fournit déjà les flux.
+- **Zones et segmentation** : un seul sous-réseau est observé.
+- **Comportement de l'hôte capteur** : il ne peut pas être appris sur le réseau local tant que capteur et scanner
+  sont la même machine.

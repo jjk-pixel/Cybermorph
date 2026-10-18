@@ -319,6 +319,15 @@ export type SnapshotSummary = {
   connections_count: Record<string, number>;
   attack_paths_count: number;
   highest_path_score: number | null;
+  has_state?: boolean;
+};
+
+/* État complet d'un cycle (lot 4) : absent des snapshots antérieurs. */
+export type SnapshotState = {
+  version: number;
+  relations: { source: number; target: number; connection_type: string; protocol: string | null; port: number | null; origin: string | null; last_seen: string | null }[];
+  assets: { id: number; ip: string; open_ports: string | null; os: string | null; mac: string | null; authorization: string | null; criticality: CriticalityLevel; is_scanner: boolean }[];
+  paths: { nodes: number[]; score: number }[];
 };
 
 export type SnapshotDetail = {
@@ -329,6 +338,7 @@ export type SnapshotDetail = {
   alerts_summary: { message: string; occurrence_count: number; priority: number | null }[];
   attack_paths_count: number;
   highest_path_score: number | null;
+  state?: SnapshotState | null;
 };
 
 export type HypothesisType = "asset_compromised" | "new_service_exposed" | "connection_removed";
@@ -502,3 +512,38 @@ export type BehaviorSummary = {
   method: string[];
 };
 
+/* ---- Mémoire et traçabilité (lot 4) ---- */
+
+export type HistoryState = {
+  at: string;
+  snapshot: { id: number; captured_at: string; attack_paths_count: number; highest_path_score: number | null; state: SnapshotState | null };
+  inventory: Record<string, { open_ports: (number | string)[]; mac: string[]; hostname: string[]; os: string[] }>;
+  communications: { id: number; src_ip: string; dst_key: string; dst_scope: string; proto: string; dst_port: number | null; app_proto: string | null; baseline_state: BaselineState }[];
+  open_deviations: { id: number; kind: string; severity: ChangeSeverity; explanation: string }[];
+  changes_since_previous: AssetChange[];
+  coverage: { topology: boolean; observations_since: string | null; communications_since: string | null; notes: string[] };
+};
+
+export type RawLine = { path: string; offset: number; line: string };
+
+export type AlertTrace = {
+  alert: Alert & { signature_id: string | null };
+  sources: {
+    fast_log_first: RawLine | null;
+    fast_log_last: RawLine | null;
+    eve_flow_ids: number[];
+    eve_last: { timestamp: string; flow_id: number; src_port: number; dest_port: number; proto: string; app_proto: string | null } | null;
+    note: string | null;
+  };
+  mitre: { technique_id: string; name: string; tactic: string; confidence: number; matched_on: string | null }[];
+  communications: (Communication & { link: string })[];
+  deviations: Deviation[];
+  incidents: { id: number; status: string; technique_id: string | null; confidence: number; link: string }[];
+  attack_paths: { nodes: number[]; score: number; evidence_level: EvidenceLevel }[];
+};
+
+export type IncidentTrace = {
+  incident: { id: number; status: string; technique_id: string | null; confidence: number };
+  trigger: AlertTrace | null;
+  steps: { sequence: number; source_asset_id: number; destination_asset_id: number; status: string; confidence: number; evidence_type: string | null; detected_at: string | null }[];
+};

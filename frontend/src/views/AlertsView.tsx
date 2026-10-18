@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { api } from "../api/client";
+import { TraceChain } from "../components/TraceChain";
 import { EmptyState, ErrorNote, Panel, PriorityTag } from "../components/ui";
 import { formatCount, formatDateTime, priorityBand } from "../lib/format";
 import { useAssetIndex } from "../lib/useAssets";
@@ -16,8 +17,10 @@ const PRIORITY_FILTERS = [
 export function AlertsView() {
   const alerts = useResource(() => api.alerts(500), [], 15_000);
   const techniques = useResource(() => api.observedTechniques(), [], 60_000);
-  const { byIp } = useAssetIndex();
+  const { byIp, label } = useAssetIndex();
   const [maxPriority, setMaxPriority] = useState(0);
+  const [traceId, setTraceId] = useState<number | null>(null);
+  const trace = useResource(() => (traceId == null ? Promise.resolve(null) : api.traceAlert(traceId)), [traceId]);
   const [search, setSearch] = useState("");
 
   const techniqueByAlert = useMemo(() => {
@@ -44,7 +47,7 @@ export function AlertsView() {
   };
 
   return (
-    <div className="layout-wide">
+    <div className={`layout-wide${traceId != null ? " has-detail" : ""}`}>
       <Panel
         className="panel-fill"
         title="Alertes Suricata"
@@ -86,14 +89,18 @@ export function AlertsView() {
               </thead>
               <tbody>
                 {rows.map((a) => (
-                  <tr key={a.id} className={`band-${priorityBand(a.priority)}`}>
+                  <tr
+                    key={a.id}
+                    className={`band-${priorityBand(a.priority)} is-clickable${traceId === a.id ? " is-selected" : ""}`}
+                    onClick={() => { setTraceId(traceId === a.id ? null : a.id); ui.selectAsset(null); }}
+                  >
                     <td><PriorityTag priority={a.priority} /></td>
                     <td>
                       <div className="cell-main">{a.message}</div>
                       <div className="cell-sub">{a.classification}{a.protocol ? ` · ${a.protocol}` : ""}</div>
                     </td>
                     <td>
-                      <button type="button" className="link-button mono" onClick={() => focusPair(a.source_ip, a.destination_ip)} title="Montrer ce flux dans la scène">
+                      <button type="button" className="link-button mono" onClick={(e) => { e.stopPropagation(); focusPair(a.source_ip, a.destination_ip); }} title="Montrer ce flux dans la scène">
                         {a.source_ip} → {a.destination_ip}
                       </button>
                     </td>
@@ -107,6 +114,13 @@ export function AlertsView() {
           </div>
         )}
       </Panel>
+
+      {traceId != null && (
+        <Panel className="detail trace-panel" title={`Preuves de l'alerte #${traceId}`} meta="Du capteur aux conclusions" onClose={() => setTraceId(null)}>
+          {trace.error && <ErrorNote message={trace.error} onRetry={trace.reload} />}
+          {trace.data ? <TraceChain trace={trace.data} label={label} /> : !trace.error && <p className="muted">Chargement…</p>}
+        </Panel>
+      )}
     </div>
   );
 }

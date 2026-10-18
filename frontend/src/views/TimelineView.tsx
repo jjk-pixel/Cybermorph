@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { api } from "../api/client";
 import type { SnapshotSummary } from "../api/types";
+import { ChangeRow } from "../components/inventory";
 import { EmptyState, ErrorNote, Panel } from "../components/ui";
 import { formatDateTime, formatTime, parseDate, riskBand } from "../lib/format";
 import { useResource } from "../lib/useResource";
@@ -135,7 +136,10 @@ export function TimelineView() {
             {SERIES.map((s) => (
               <LineChart key={s.title} series={s} points={points} hover={hover} selected={selected >= 0 ? selected : null} onHover={setHover} onPick={pick} />
             ))}
-            <p className="muted small">Cliquez sur un instant pour rejouer l'état du réseau dans la scène (risque et disponibilité de chaque actif).</p>
+            <p className="muted small">
+              Cliquez sur un instant pour rejouer l'état du réseau dans la scène : risque et disponibilité depuis septembre,
+              topologie et inventaire complets pour les scans enregistrés depuis le suivi détaillé.
+            </p>
 
             {replay && (
               <div className="replay-summary">
@@ -149,6 +153,7 @@ export function TimelineView() {
                     </li>
                   ))}
                 </ul>
+                <ReplayDetail at={replay.captured_at} />
                 {replay.alerts_summary.length > 0 && (
                   <ul className="mini-alerts">
                     {replay.alerts_summary.map((a, i) => (
@@ -191,6 +196,37 @@ export function TimelineView() {
           </>
         )}
       </Panel>
+    </div>
+  );
+}
+
+/* Ce que l'on sait de l'instant rejoué, et ce que l'on ne sait pas (couverture des sources). */
+function ReplayDetail({ at }: { at: string }) {
+  const history = useResource(() => api.historyState(at), [at]);
+  const data = history.data;
+  if (history.error) return <ErrorNote message={history.error} onRetry={history.reload} />;
+  if (!data) return <p className="muted small">Reconstitution…</p>;
+  const relations = data.snapshot.state?.relations.length ?? 0;
+  const assetsWithPorts = Object.keys(data.inventory).length;
+  return (
+    <div className="replay-detail">
+      <p className="small">
+        {data.coverage.topology ? `${relations} relation${relations > 1 ? "s" : ""} active${relations > 1 ? "s" : ""} rejouée${relations > 1 ? "s" : ""}` : "Topologie actuelle (non enregistrée à cette date)"}
+        {assetsWithPorts > 0 && ` · ports reconstitués pour ${assetsWithPorts} actif${assetsWithPorts > 1 ? "s" : ""}`}
+        {data.communications.length > 0 && ` · ${data.communications.length} activité${data.communications.length > 1 ? "s" : ""} connue${data.communications.length > 1 ? "s" : ""}`}
+        {data.open_deviations.length > 0 && ` · ${data.open_deviations.length} écart${data.open_deviations.length > 1 ? "s" : ""} ouvert${data.open_deviations.length > 1 ? "s" : ""}`}
+      </p>
+      {data.coverage.notes.length > 0 && (
+        <ul className="assumptions">{data.coverage.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+      )}
+      {data.changes_since_previous.length > 0 && (
+        <>
+          <h3 className="section-title">Changements depuis le scan précédent</h3>
+          <ul className="change-list is-compact">
+            {data.changes_since_previous.slice(0, 8).map((c) => <ChangeRow key={c.id} change={c} />)}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

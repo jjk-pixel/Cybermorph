@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type { IncidentStep } from "../api/types";
+import { TraceChain } from "../components/TraceChain";
 import { EmptyState, ErrorNote, Panel } from "../components/ui";
 import { formatDateTime, formatRelative, INCIDENT_STATUS_LABEL } from "../lib/format";
 import { useAssetIndex } from "../lib/useAssets";
@@ -136,6 +137,8 @@ export function IncidentsView() {
           <h3 className="section-title">Propagation</h3>
           {detail.error && <ErrorNote message={detail.error} onRetry={detail.reload} />}
           <StepList steps={steps} label={label} />
+          <h3 className="section-title">Preuves du déclencheur</h3>
+          <IncidentEvidence id={selected.id} label={label} />
           <p className="muted small">
             Une étape est confirmée quand une alerte IDS montre l'asset compromis attaquant la destination. Sans activité pendant une heure, l'incident passe en dormant.
           </p>
@@ -143,4 +146,12 @@ export function IncidentsView() {
       )}
     </div>
   );
+}
+
+function IncidentEvidence({ id, label }: { id: number; label: (id: number | null | undefined) => string }) {
+  const trace = useResource(() => api.traceIncident(id), [id]);
+  if (trace.error) return <ErrorNote message={trace.error} onRetry={trace.reload} />;
+  if (!trace.data) return <p className="muted small">Chargement…</p>;
+  if (!trace.data.trigger) return <p className="muted small">L'alerte déclenchante n'est plus disponible.</p>;
+  return <TraceChain trace={trace.data.trigger} label={(n) => label(n)} />;
 }

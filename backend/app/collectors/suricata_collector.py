@@ -64,14 +64,33 @@ def read_new_lines(path: str = FAST_LOG_PATH) -> tuple[list[str], int, int] | No
     return lines, stat.st_ino, offset + len(complete)
 
 
-def parse_fast_log_lines(lines: list[str]) -> list[dict]:
+def parse_fast_log_lines(lines: list[str], start_offset: int | None = None) -> list[dict]:
+    """
+    Analyse les lignes ; si `start_offset` est connu, chaque alerte garde sa ligne brute et sa position
+    dans fast.log (preuve source consultable).
+    """
     alerts = []
+    offset = start_offset
     for line in lines:
         match = LINE_PATTERN.match(line.strip())
-        if not match:
-            continue
-        alerts.append(match.groupdict())
+        if match:
+            record = match.groupdict()
+            if offset is not None:
+                record["_raw"] = {"path": FAST_LOG_PATH, "offset": offset, "line": line.strip()[:1000]}
+            alerts.append(record)
+        if offset is not None:
+            offset += len(line.encode("utf-8")) + 1
     return alerts
+
+
+def _merge_evidence(evidence: dict | None, raw: dict | None) -> dict | None:
+    """Première et dernière ligne fast.log d'une alerte agrégée."""
+    if not raw:
+        return evidence
+    evidence = dict(evidence or {})
+    evidence.setdefault("fast_log_first", raw)
+    evidence["fast_log_last"] = raw
+    return evidence
 
 
 def parse_fast_log(path: str = FAST_LOG_PATH) -> list[dict]:
@@ -89,7 +108,8 @@ def sync_suricata_alerts():
     if read is None:
         return
     lines, inode, new_offset = read
-    records = parse_fast_log_lines(lines)
+    start_offset = new_offset - sum(len(line.encode("utf-8")) + 1 for line in lines)
+    records = parse_fast_log_lines(lines, start_offset if start_offset >= 0 else None)
     print(f"[CYBERMORPH][Suricata] {len(records)} ligne(s) d'alerte trouvée(s) dans fast.log.")
 
     db: Session = SessionLocal()
@@ -117,6 +137,7 @@ def sync_suricata_alerts():
 
             if existing:
                 existing.occurrence_count += 1
+                existing.evidence = _merge_evidence(existing.evidence, r.get("_raw"))
                 if detected_at and (not existing.last_seen or detected_at > existing.last_seen):
                     existing.last_seen = detected_at
                 updated_count += 1
@@ -138,6 +159,7 @@ def sync_suricata_alerts():
                 occurrence_count=1,
                 first_seen=detected_at,
                 last_seen=detected_at,
+                evidence=_merge_evidence(None, r.get("_raw")),
             )
             db.add(alert)
             db.flush()  # rend l'alerte visible aux requêtes suivantes du même lot (autoflush désactivé)

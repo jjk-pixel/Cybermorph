@@ -1984,6 +1984,77 @@ select.input {
 .table tr.band-moderate td:first-child { box-shadow: inset 2px 0 0 var(--amber); }
 
 /* ==========================================================================
+   Mémoire et traçabilité (lot 4)
+   ========================================================================== */
+
+.layout-wide.has-detail > .panel:first-child { width: min(54%, 860px); }
+.layout-wide > .detail { width: 420px; flex: 0 0 auto; align-self: flex-start; max-height: 100%; }
+.table tr.is-clickable { cursor: pointer; }
+.table tr.is-clickable:hover td { background: rgba(47, 107, 255, 0.06); }
+
+.trace {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.trace-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 10px;
+  padding: 0 0 14px;
+}
+
+/* Fil vertical : la preuve remonte du capteur vers les conclusions */
+.trace-step::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 14px;
+  bottom: 0;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.trace-step:last-child::before { display: none; }
+
+.trace-kind {
+  padding-left: 14px;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  background: radial-gradient(circle at 3px 7px, var(--cyan) 3px, transparent 3.5px) no-repeat;
+}
+
+.trace-step p + p { margin-top: 4px; }
+
+.trace-link {
+  padding: 0 5px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-tag);
+  color: var(--ink-3);
+  font-size: 0.6875rem;
+}
+
+.trace-link.is-exact { border-style: solid; border-color: rgba(34, 228, 255, 0.5); color: var(--cyan); }
+
+.raw-line { margin: 6px 0; }
+
+.raw-line pre {
+  margin-top: 2px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: rgba(2, 6, 13, 0.8);
+  color: var(--ink-2);
+  font-size: 0.6875rem;
+  white-space: pre;
+}
+
+.replay-detail { margin: 8px 0 12px; }
+
+/* ==========================================================================
    Adaptatif
    ========================================================================== */
 
@@ -2143,8 +2214,14 @@ select.input {
     grid-template-columns: 1fr;
   }
 
-  .layout-inventory > .inventory-panel {
+  .layout-inventory > .inventory-panel,
+  .layout-wide.has-detail > .panel:first-child,
+  .layout-wide > .detail {
     width: 100%;
+  }
+
+  .trace-step {
+    grid-template-columns: 1fr;
   }
 
   .change-row {

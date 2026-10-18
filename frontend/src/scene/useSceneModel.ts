@@ -4,6 +4,7 @@ import { isCriticalLevel, isStale } from "../lib/format";
 import { useLive } from "../state/live";
 import { useUi } from "../state/ui";
 import { arcControl, computeLayout, linkSide, type Vec3 } from "./layout";
+import { linksFromSnapshot } from "./replay";
 
 export type SceneLink = LiveLink & { from: Vec3; to: Vec3; mid: Vec3; removed: boolean; stale: boolean };
 
@@ -45,11 +46,13 @@ export function useSceneModel() {
     [assets],
   );
 
+  const replayRelations = replay?.state?.relations;
+  const replayAt = replay?.captured_at;
   const generatedAt = live?.generated_at;
   const links: SceneLink[] = useMemo(() => {
-    const raw = liveLinks ?? [];
-    // Référence de fraîcheur : l'heure de calcul de l'état live (pur, sans Date.now)
-    const reference = Date.parse(generatedAt ?? "") || 0;
+    const raw = replayRelations ? linksFromSnapshot(replayRelations) : liveLinks ?? [];
+    // Référence de fraîcheur : l'instant rejoué, sinon l'heure de calcul de l'état live (pur, sans Date.now)
+    const reference = Date.parse(replayAt ?? generatedAt ?? "") || 0;
     const keys = new Set(raw.map((l) => `${l.source}>${l.target}`));
     const removed = simulation?.removedLink;
     return raw.flatMap((l) => {
@@ -63,11 +66,11 @@ export function useSceneModel() {
         to,
         mid: arcControl(from, to, side),
         removed: !!removed && removed[0] === l.source && removed[1] === l.target,
-        // Relation dont la dernière observation date de plus de 24 h : affichée estompée
+        // Relation dont la dernière observation date de plus de 24 h (à l'instant rejoué) : affichée estompée
         stale: !l.provenance?.ids && isStale(l.last_seen, reference),
       }];
     });
-  }, [liveLinks, generatedAt, positions, simulation?.removedLink]);
+  }, [liveLinks, replayRelations, replayAt, generatedAt, positions, simulation?.removedLink]);
 
   const traces: Trace[] = useMemo(() => {
     const result: Trace[] = [];

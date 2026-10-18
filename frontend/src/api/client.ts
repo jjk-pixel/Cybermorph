@@ -4,6 +4,7 @@
  */
 import type {
   Alert,
+  AlertTrace,
   AssetChange,
   AssetDeclaration,
   AttackPath,
@@ -14,7 +15,9 @@ import type {
   Exposure,
   Hypothesis,
   IncidentDetail,
+  HistoryState,
   IncidentSummary,
+  IncidentTrace,
   Inventory,
   InventoryDetail,
   LiveState,
@@ -79,7 +82,10 @@ export const api = {
   acknowledgeDeviation: (id: number) => request<Deviation>(`/api/behavior/deviations/${id}/acknowledge`, { method: "POST" }),
   inventory: () => request<Inventory>("/api/inventory/"),
   inventoryAsset: (assetId: number) => request<InventoryDetail>(`/api/inventory/${assetId}`),
-  changes: (params: { limit?: number; asset_id?: number; min_severity?: string; include_acknowledged?: boolean } = {}) =>
+  historyState: (at: string) => request<HistoryState>(`/api/history/state${query({ at })}`),
+  traceAlert: (id: number) => request<AlertTrace>(`/api/trace/alert/${id}`),
+  traceIncident: (id: number) => request<IncidentTrace>(`/api/trace/incident/${id}`),
+  changes: (params: { limit?: number; asset_id?: number; min_severity?: string; include_acknowledged?: boolean; since?: string; until?: string } = {}) =>
     request<AssetChange[]>(`/api/changes/${query({ ...params, include_acknowledged: params.include_acknowledged === false ? "false" : undefined })}`),
   acknowledgeChange: (id: number) => request<AssetChange>(`/api/changes/${id}/acknowledge`, { method: "POST" }),
   declareAsset: (assetId: number, declaration: AssetDeclaration) =>

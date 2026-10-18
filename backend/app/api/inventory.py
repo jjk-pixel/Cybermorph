@@ -112,8 +112,14 @@ def list_changes(
     asset_id: int | None = None,
     min_severity: str = Query("info", pattern="^(info|notice|warning)$"),
     include_acknowledged: bool = True,
+    since: datetime | None = None,
+    until: datetime | None = None,
 ):
     query = db.query(AssetChange)
+    if since is not None:
+        query = query.filter(AssetChange.detected_at > since)
+    if until is not None:
+        query = query.filter(AssetChange.detected_at <= until)
     if asset_id is not None:
         query = query.filter(AssetChange.asset_id == asset_id)
     if not include_acknowledged:

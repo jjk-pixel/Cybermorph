@@ -13,3 +13,5 @@ class Snapshot(Base):
     alerts_summary = Column(JSON, nullable=False)
     attack_paths_count = Column(Integer, nullable=False)
     highest_path_score = Column(Integer, nullable=True)
+    # Lot 4 — état complet au moment du cycle : relations actives et attributs des actifs (NULL pour l'historique antérieur)
+    state = Column(JSON, nullable=True)

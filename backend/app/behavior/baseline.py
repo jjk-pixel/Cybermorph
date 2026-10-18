@@ -257,6 +257,8 @@ def process_events(db: Session, lines: list[str], now: datetime | None = None, l
             kind = "dhcp"
         elif '"event_type":"tls"' in line:
             kind = "tls"
+        elif '"event_type":"alert"' in line:
+            kind = "alert"
         else:
             continue
         try:
@@ -265,6 +267,9 @@ def process_events(db: Session, lines: list[str], now: datetime | None = None, l
             continue
         if kind == "flow":
             flows.append(event)
+        elif kind == "alert":
+            if _attach_alert_flow(db, event):
+                stats["alerts_linked"] = stats.get("alerts_linked", 0) + 1
         elif kind == "tls":
             sni = event.get("tls", {}).get("sni")
             if sni and event.get("flow_id"):
@@ -377,6 +382,32 @@ def process_events(db: Session, lines: list[str], now: datetime | None = None, l
     _expire_flow_relations(ctx)
     db.flush()
     return stats
+
+
+def _attach_alert_flow(db: Session, event: dict) -> bool:
+    """
+    Rattache l'alerte agrégée (issue de fast.log) au flow_id Suricata de l'événement eve correspondant :
+    même signature (gid:sid:rev) et même couple source/destination. Lien exact, sans heuristique.
+    """
+    info = event.get("alert", {})
+    sig = f"{info.get('gid', 1)}:{info.get('signature_id')}:{info.get('rev', 0)}"
+    alert = (
+        db.query(Alert)
+        .filter(Alert.signature_id == sig, Alert.source_ip == event.get("src_ip"), Alert.destination_ip == event.get("dest_ip"))
+        .first()
+    )
+    if not alert or not event.get("flow_id"):
+        return False
+    evidence = dict(alert.evidence or {})
+    flows = [f for f in evidence.get("flow_ids", []) if f != event["flow_id"]] + [event["flow_id"]]
+    evidence["flow_ids"] = flows[-SAMPLE_LIMIT:]
+    evidence["eve_last"] = {
+        "timestamp": event.get("timestamp"), "flow_id": event["flow_id"],
+        "src_port": event.get("src_port"), "dest_port": event.get("dest_port"), "proto": event.get("proto"),
+        "app_proto": event.get("app_proto"),
+    }
+    alert.evidence = evidence
+    return True
 
 
 def scope_is_local_source(ip: str, local_networks: list) -> bool:
